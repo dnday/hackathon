@@ -35,6 +35,192 @@ app/
 requirements.txt
 ```
 
+## Penjelasan Backend
+
+Backend KosCheck bertugas sebagai lapisan validasi listing kos sebelum user melakukan transaksi. Sistem menerima data listing, chat calon pemilik, dan gambar kamar, lalu menggabungkan beberapa sinyal risiko menjadi satu hasil penilaian.
+
+### Alur Validasi
+
+1. Client mengirim request ke `POST /api/v1/validate-listing` menggunakan `multipart/form-data`.
+2. Backend membaca `form_data` sebagai JSON, lalu memvalidasi schema menggunakan Pydantic.
+3. Jika ada file chat `.txt`, backend menganalisis isi percakapan dengan Gemini untuk mendeteksi tekanan, urgensi, inkonsistensi, atau anomali pembayaran.
+4. Jika ada gambar, backend menganalisis aset visual dengan Gemini untuk mendeteksi apakah gambar terlihat realistis, menampilkan interior kamar, atau memiliki watermark dari platform lain.
+5. Backend mengambil benchmark harga area dari Firestore. Jika belum ada, backend mencoba mengambil data publik melalui aggregator.
+6. `validation_engine` menghitung `anomaly_score` dari gabungan harga, kesediaan video call, hasil analisis chat, dan hasil analisis visual.
+7. Hasil validasi dikembalikan ke client dan disimpan ke Firestore sebagai riwayat.
+
+### Komponen Utama
+
+| Komponen | Fungsi |
+| --- | --- |
+| `app/main.py` | Entry point FastAPI, registrasi router, health check, dan error handler. |
+| `app/api/v1/validation.py` | Endpoint validasi listing, parsing form, upload chat, upload gambar, dan orkestrasi service. |
+| `app/api/v1/cron.py` | Endpoint cron untuk memperbarui benchmark harga area. |
+| `app/models/validation.py` | Schema request dan response menggunakan Pydantic. |
+| `app/services/validation_engine.py` | Rule engine untuk menghitung skor risiko dan rekomendasi tindakan. |
+| `app/services/gemini_service.py` | Integrasi Gemini untuk analisis chat dan gambar. |
+| `app/services/aggregator_service.py` | Agregasi data harga publik untuk benchmark area. |
+| `app/services/db_service.py` | Operasi penyimpanan dan pembacaan data Firestore. |
+| `app/core/config.py` | Konfigurasi environment variable. |
+
+### Sinyal Risiko yang Dinilai
+
+Backend saat ini menilai beberapa indikator utama:
+
+- Harga listing jauh di bawah rata-rata area.
+- Pemilik tidak bersedia melakukan video call.
+- Chat mengandung tekanan tinggi, urgensi, atau instruksi pembayaran yang mencurigakan.
+- Nama kontak dan pola komunikasi terindikasi tidak konsisten.
+- Gambar tidak terlihat seperti interior kamar asli.
+- Gambar memiliki watermark dari platform lain.
+- Kombinasi beberapa sinyal lemah, misalnya harga terlalu murah dan pemilik menolak verifikasi langsung.
+
+### Output Validasi
+
+Response utama berupa:
+
+- `anomaly_score`: skor risiko dari `0` sampai `100`.
+- `status`: kategori hasil, yaitu `SAFE`, `WARNING`, atau `HIGH RISK`.
+- `detected_anomalies`: daftar masalah yang ditemukan beserta poin risikonya.
+- `recommended_actions`: saran aksi untuk user.
+- `price_comparison`: perbandingan harga listing dengan benchmark area.
+- `communication_analysis`: ringkasan hasil analisis chat.
+- `visual_analysis`: ringkasan hasil analisis gambar.
+
+## Saran Fitur Tambahan untuk v1
+
+Fitur berikut cocok untuk versi v1 karena masih sejalan dengan arsitektur backend saat ini dan dapat meningkatkan nilai produk tanpa mengubah sistem secara besar-besaran.
+
+### 1. Endpoint Detail Riwayat Validasi
+
+Tambahkan endpoint untuk mengambil riwayat validasi dari Firestore.
+
+- `GET /api/v1/validations`
+- `GET /api/v1/validations/{validation_id}`
+
+Manfaat:
+
+- Frontend bisa menampilkan histori pengecekan user.
+- Tim bisa melakukan audit hasil validasi.
+- Data validasi bisa dipakai untuk evaluasi rule engine.
+
+### 2. Risk Breakdown yang Lebih Transparan
+
+Tambahkan breakdown skor per kategori.
+
+Contoh kategori:
+
+- `price_risk`
+- `communication_risk`
+- `visual_risk`
+- `identity_risk`
+- `verification_risk`
+
+Manfaat:
+
+- User lebih mudah memahami alasan listing dianggap aman atau berisiko.
+- Frontend bisa membuat visualisasi skor yang lebih jelas.
+- Debugging rule engine menjadi lebih mudah.
+
+### 3. Validasi Nama Rekening vs Nama Kontak
+
+Perkuat pengecekan antara `contact_name` dan `bank_account_name`.
+
+Manfaat:
+
+- Mendeteksi perbedaan identitas dasar.
+- Memberi peringatan saat nama rekening tidak cocok dengan nama kontak.
+- Berguna untuk kasus penipuan yang memakai rekening pihak ketiga.
+
+### 4. Area Benchmark Multi-Sumber
+
+Perluas aggregator agar mengambil benchmark dari lebih dari satu sumber publik.
+
+Manfaat:
+
+- Benchmark harga lebih stabil.
+- Mengurangi bias dari satu website.
+- Meningkatkan kepercayaan terhadap hasil `price_comparison`.
+
+### 5. Cache dan Expiry Benchmark
+
+Tambahkan metadata seperti `expires_at` atau TTL untuk benchmark area.
+
+Manfaat:
+
+- Backend tidak perlu sering scraping ulang.
+- Data lama bisa otomatis diperbarui.
+- Response validasi menjadi lebih cepat.
+
+### 6. Upload Limit Feedback
+
+Tambahkan response yang lebih informatif saat gambar terlalu besar atau jumlah gambar terlalu banyak.
+
+Manfaat:
+
+- Frontend bisa menampilkan pesan error yang jelas.
+- User tahu batas ukuran dan jumlah file.
+- Mengurangi request gagal berulang.
+
+### 7. Manual Review Flag
+
+Tambahkan flag `requires_manual_review` pada response.
+
+Contoh:
+
+```json
+{
+  "requires_manual_review": true
+}
+```
+
+Manfaat:
+
+- Listing dengan risiko tinggi bisa diarahkan ke proses review manual.
+- Frontend bisa menampilkan CTA seperti "Minta Bantuan Verifikasi".
+- Cocok untuk MVP yang ingin tetap punya lapisan human-in-the-loop.
+
+### 8. Basic API Key untuk Endpoint Validasi
+
+Saat ini API key baru diterapkan pada endpoint cron. Untuk v1, endpoint validasi juga bisa diberi proteksi sederhana.
+
+Manfaat:
+
+- Mengurangi abuse dari pihak luar.
+- Membatasi akses hanya dari frontend resmi.
+- Lebih aman sebelum masuk ke auth user penuh.
+
+### 9. Health Check Lebih Lengkap
+
+Tambahkan endpoint readiness untuk mengecek koneksi Firebase dan konfigurasi Gemini.
+
+Contoh:
+
+- `GET /health`
+- `GET /ready`
+
+Manfaat:
+
+- Deployment lebih mudah dipantau.
+- Error konfigurasi bisa terdeteksi lebih cepat.
+- Berguna untuk cloud platform atau CI/CD.
+
+### 10. Test Case untuk Rule Engine
+
+Tambahkan unit test untuk skenario risiko utama.
+
+Contoh skenario:
+
+- Harga normal dan data konsisten menghasilkan `SAFE`.
+- Harga sangat murah dan video call ditolak menghasilkan `WARNING` atau `HIGH RISK`.
+- Watermark dan tekanan chat tinggi menaikkan skor risiko.
+
+Manfaat:
+
+- Perubahan rule engine lebih aman.
+- Skor risiko tidak berubah tanpa disadari.
+- Cocok untuk menjaga kualitas saat fitur bertambah.
+
 ## Setup Lokal
 
 1. Buat virtual environment.
