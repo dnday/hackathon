@@ -122,17 +122,7 @@ Manfaat:
 - Frontend bisa membuat visualisasi skor yang lebih jelas.
 - Debugging rule engine menjadi lebih mudah.
 
-### 3. Validasi Nama Rekening vs Nama Kontak
-
-Perkuat pengecekan antara `contact_name` dan `bank_account_name`.
-
-Manfaat:
-
-- Mendeteksi perbedaan identitas dasar.
-- Memberi peringatan saat nama rekening tidak cocok dengan nama kontak.
-- Berguna untuk kasus penipuan yang memakai rekening pihak ketiga.
-
-### 4. Area Benchmark Multi-Sumber
+### 3. Area Benchmark Multi-Sumber
 
 Perluas aggregator agar mengambil benchmark dari lebih dari satu sumber publik.
 
@@ -142,7 +132,7 @@ Manfaat:
 - Mengurangi bias dari satu website.
 - Meningkatkan kepercayaan terhadap hasil `price_comparison`.
 
-### 5. Cache dan Expiry Benchmark
+### 4. Cache dan Expiry Benchmark
 
 Tambahkan metadata seperti `expires_at` atau TTL untuk benchmark area.
 
@@ -152,7 +142,7 @@ Manfaat:
 - Data lama bisa otomatis diperbarui.
 - Response validasi menjadi lebih cepat.
 
-### 6. Upload Limit Feedback
+### 5. Upload Limit Feedback
 
 Tambahkan response yang lebih informatif saat gambar terlalu besar atau jumlah gambar terlalu banyak.
 
@@ -162,7 +152,7 @@ Manfaat:
 - User tahu batas ukuran dan jumlah file.
 - Mengurangi request gagal berulang.
 
-### 7. Manual Review Flag
+### 6. Manual Review Flag
 
 Tambahkan flag `requires_manual_review` pada response.
 
@@ -180,7 +170,7 @@ Manfaat:
 - Frontend bisa menampilkan CTA seperti "Minta Bantuan Verifikasi".
 - Cocok untuk MVP yang ingin tetap punya lapisan human-in-the-loop.
 
-### 8. Basic API Key untuk Endpoint Validasi
+### 7. Basic API Key untuk Endpoint Validasi
 
 Saat ini API key baru diterapkan pada endpoint cron. Untuk v1, endpoint validasi juga bisa diberi proteksi sederhana.
 
@@ -190,7 +180,7 @@ Manfaat:
 - Membatasi akses hanya dari frontend resmi.
 - Lebih aman sebelum masuk ke auth user penuh.
 
-### 9. Health Check Lebih Lengkap
+### 8. Health Check Lebih Lengkap
 
 Tambahkan endpoint readiness untuk mengecek koneksi Firebase dan konfigurasi Gemini.
 
@@ -205,7 +195,7 @@ Manfaat:
 - Error konfigurasi bisa terdeteksi lebih cepat.
 - Berguna untuk cloud platform atau CI/CD.
 
-### 10. Test Case untuk Rule Engine
+### 9. Test Case untuk Rule Engine
 
 Tambahkan unit test untuk skenario risiko utama.
 
@@ -375,6 +365,29 @@ Semua error dikembalikan dengan format konsisten:
 ```json
 {
   "error": true,
+  "code": "ERROR_CODE",
+  "message": "Human readable message"
+}
+```
+
+## Verifikasi Cepat
+
+```powershell
+python -m compileall app
+python -c "from app.main import app; print([route.path for route in app.routes])"
+```
+
+Health check:
+
+```text
+GET /health
+```
+
+Expected response:
+
+```json
+{"status": "ok"}
+```
   "code": "ERROR_CODE",
   "message": "Human readable message"
 }

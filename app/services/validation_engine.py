@@ -72,12 +72,6 @@ def calculate_trust_score(
     if form_data.specific_address_provided is False:
         add_anomaly("Vague Address", "No specific address is provided.", 10)
 
-    # Name Matching (Q3 & Q4)
-    if form_data.contact_name and form_data.bank_account_name:
-        similarity = SequenceMatcher(None, form_data.contact_name.lower(), form_data.bank_account_name.lower()).ratio()
-        if similarity < 0.4:
-            add_anomaly("Name Mismatch", "Contact name and bank account name have low similarity.", 20)
-
     # Video Call/Survey (Q5)
     if not form_data.owner_willing_videocall:
         add_anomaly("Video Call Refused", "Owner is unwilling to verify the listing through a video call.", 30)
