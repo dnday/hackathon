@@ -62,98 +62,63 @@ def calculate_trust_score(
             DetectedAnomaly(title=title, description=description, points=points)
         )
 
-    if db_benchmark and db_benchmark.mean_price and form_data.price < 0.6 * db_benchmark.mean_price:
-        add_anomaly(
-            "Price Far Below Market",
-            "Listing price is below 60% of the current area mean.",
-            30,
-        )
-    elif (
-        db_benchmark
-        and db_benchmark.mean_price
-        and form_data.price < 0.8 * db_benchmark.mean_price
-    ):
-        add_anomaly(
-            "Price Below Market",
-            "Listing price is below 80% of the current area mean.",
-            12,
-        )
+    # Photos (Q1)
+    if form_data.photos_provided == "Tidak":
+        add_anomaly("No Photos Provided", "The listing does not provide photos.", 10)
+    elif form_data.photos_provided == "Hanya foto saja":
+        add_anomaly("Only Photos Provided", "The listing provides only photos, lacking video proof.", 5)
 
+    # Map/Address (Q2)
+    if form_data.specific_address_provided is False:
+        add_anomaly("Vague Address", "No specific address is provided.", 10)
+
+    # Name Matching (Q3 & Q4)
+    if form_data.contact_name and form_data.bank_account_name:
+        similarity = SequenceMatcher(None, form_data.contact_name.lower(), form_data.bank_account_name.lower()).ratio()
+        if similarity < 0.4:
+            add_anomaly("Name Mismatch", "Contact name and bank account name have low similarity.", 20)
+
+    # Video Call/Survey (Q5)
     if not form_data.owner_willing_videocall:
-        add_anomaly(
-            "Video Call Verification Refused",
-            "Owner is unwilling to verify the listing through a video call.",
-            25,
-        )
+        add_anomaly("Video Call Refused", "Owner is unwilling to verify the listing through a video call.", 30)
 
+    # Urgency (Q6)
+    if form_data.urgency_level == "Ya (harus transfer segera)":
+        add_anomaly("High Urgency", "Owner demands immediate transfer.", 20)
+    elif form_data.urgency_level == "Sedikit":
+        add_anomaly("Slight Urgency", "Owner shows some urgency for payment.", 10)
+
+    # Testimonials (Q7)
+    if form_data.has_testimonials is False:
+        add_anomaly("No Testimonials", "Listing has no previous testimonials.", 10)
+
+    # Advanced Anomaly Detection: Price vs. Facilities
+    premium_facilities = {"AC", "K. Mandi Dalam", "WiFi", "Air panas"}
+    has_premium = any(facility in premium_facilities for facility in form_data.facilities)
+    if has_premium and db_benchmark and db_benchmark.mean_price:
+        if form_data.price < 0.6 * db_benchmark.mean_price:
+            add_anomaly(
+                "Too Good To Be True", 
+                "The listing offers premium facilities but the price is significantly lower than the area benchmark.", 
+                30
+            )
+
+    # AI Communication & Visual Analysis
     if visual.watermark_detected:
-        add_anomaly(
-            "External Watermark Detected",
-            "Images appear to contain logos or watermarks from another platform.",
-            40,
-        )
-
+        add_anomaly("External Watermark Detected", "Images appear to contain logos or watermarks from another platform.", 40)
+    
     pressure_points = min(30, round(chat.pressure_level * 0.3))
     if pressure_points > 0:
-        add_anomaly(
-            "High-Pressure Communication",
-            "Conversation shows urgency, pressure, or inconsistent payment behavior.",
-            pressure_points,
-        )
-
+        add_anomaly("High-Pressure Communication", "Conversation shows urgency or pressure.", pressure_points)
+        
     if chat.payment_anomaly_detected:
-        add_anomaly(
-            "Payment Request Anomaly",
-            "Conversation includes unusual payment instructions or suspicious transfer pressure.",
-            15,
-        )
+        add_anomaly("Payment Request Anomaly", "Unusual payment instructions or suspicious transfer pressure.", 15)
 
     if chat.inconsistencies_found:
-        add_anomaly(
-            "Communication Inconsistencies",
-            "Gemini detected inconsistent claims or payment instructions.",
-            10,
-        )
-
-    if chat.urgency_detected and chat.pressure_level >= 50:
-        add_anomaly(
-            "Urgency Pattern Detected",
-            "The communication pushes the user to decide or pay quickly.",
-            5,
-        )
+        add_anomaly("Communication Inconsistencies", "Inconsistent claims or payment instructions.", 10)
 
     if not visual.room_interior_detected or not visual.realistic_images:
-        add_anomaly(
-            "Visual Asset Mismatch",
-            "Images do not clearly depict realistic room interiors.",
-            15,
-        )
-
-    if visual.watermark_detected and not form_data.owner_willing_videocall:
-        add_anomaly(
-            "Compounded Verification Risk",
-            "Watermarked visual assets combined with refusal of live verification increases anomaly risk.",
-            10,
-        )
-
-    if visual.watermark_detected and chat.pressure_level >= 70:
-        add_anomaly(
-            "Stolen-Asset Pressure Pattern",
-            "External watermark appears together with high-pressure communication.",
-            10,
-        )
-
-    if (
-        db_benchmark
-        and db_benchmark.mean_price
-        and form_data.price < 0.6 * db_benchmark.mean_price
-        and not form_data.owner_willing_videocall
-    ):
-        add_anomaly(
-            "Underpriced Listing With Weak Verification",
-            "The listing is far below market and the owner avoids video verification.",
-            10,
-        )
+        add_anomaly("Visual Asset Mismatch", "Images do not clearly depict realistic room interiors.", 15)
 
     final_score = min(score, 100)
     actions = [
@@ -176,4 +141,5 @@ def calculate_trust_score(
         price_comparison=_price_comparison(form_data, db_benchmark),
         communication_analysis=chat,
         visual_analysis=visual,
+        conclusion_summary="Pending..."
     )

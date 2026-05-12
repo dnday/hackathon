@@ -87,3 +87,4 @@ class ValidationResult(BaseModel):
     price_comparison: PriceComparison
     communication_analysis: CommunicationAnalysis
     visual_analysis: VisualAnalysis
+    conclusion_summary: str

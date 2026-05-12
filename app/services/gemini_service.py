@@ -149,3 +149,28 @@ async def analyze_visual_assets(images: list[bytes]) -> dict[str, Any]:
         OSError,
     ):
         return _fallback_visual("Visual analysis is temporarily unavailable.", True)
+
+async def generate_review_conclusion(risk_score: int, red_flags: list[str], facilities: list[str]) -> str:
+    model = _model()
+    if model is None:
+        return f"Kesimpulan: Kos ini memiliki {', '.join(facilities) if facilities else 'beberapa fasilitas'}. (Gemini API not configured, risk score: {risk_score})"
+        
+    prompt = f"""
+You are a property-listing validation analyst in Indonesia.
+Please generate a short, human-readable conclusion paragraph in Indonesian based on the calculated data.
+You MUST start the paragraph EXACTLY with: "Kesimpulan: Kos ini memiliki..."
+Summarize the risk level ({risk_score}/100), the suspicious elements found ({', '.join(red_flags) if red_flags else 'Tidak ada'}), and whether the price makes sense for the facilities offered ({', '.join(facilities) if facilities else 'Tidak ada data fasilitas'}).
+"""
+    try:
+        response = await model.generate_content_async(
+            prompt,
+            generation_config={"temperature": 0.3},
+            request_options={"timeout": 15},
+        )
+        return response.text.strip()
+    except (
+        google_exceptions.GoogleAPIError,
+        google_exceptions.RetryError,
+        ValueError,
+    ) as e:
+        return f"Kesimpulan: Kos ini memiliki {', '.join(facilities) if facilities else 'beberapa fasilitas'}. Validasi gagal mengambil kesimpulan dari AI. ({str(e)})"

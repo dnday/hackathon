@@ -127,6 +127,14 @@ async def validate_listing(
         visual_analysis=visual_analysis,
     )
 
+    red_flags = [a.title for a in result.detected_anomalies]
+    conclusion = await generate_review_conclusion(
+        risk_score=result.anomaly_score,
+        red_flags=red_flags,
+        facilities=parsed_form.facilities,
+    )
+    result.conclusion_summary = conclusion
+
     background_tasks.add_task(
         save_validation_history,
         {
