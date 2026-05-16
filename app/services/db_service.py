@@ -94,6 +94,38 @@ async def save_validation_history(payload: dict[str, Any]) -> str | None:
     return await asyncio.to_thread(_save_validation_history_sync, payload)
 
 
+def _save_scraped_listings_sync(listings: list[dict[str, Any]]) -> None:
+    client = get_firestore_client()
+    if client is None or not listings:
+        return
+
+    batch = client.batch()
+    collection = client.collection("scraped_listings")
+    
+    for item in listings:
+        url = item.get("listing_url", "")
+        if not url:
+            continue
+            
+        doc_id = url.split("/")[-1] or _document_id(item.get("listing_name", "unknown"))
+        doc_ref = collection.document(doc_id)
+        
+        batch.set(doc_ref, {
+            **item,
+            "updated_at": datetime.now(UTC),
+            "is_scraped": True
+        }, merge=True)
+    
+    try:
+        batch.commit(timeout=5)
+    except Exception:
+        pass
+
+
+async def save_scraped_listings(listings: list[dict[str, Any]]) -> None:
+    await asyncio.to_thread(_save_scraped_listings_sync, listings)
+
+
 def _is_firestore_available_sync() -> bool:
     return get_firestore_client() is not None
 
@@ -108,4 +140,5 @@ __all__ = [
     "is_firestore_available",
     "save_market_benchmark",
     "save_validation_history",
+    "save_scraped_listings",
 ]

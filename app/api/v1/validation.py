@@ -2,17 +2,32 @@ import asyncio
 import json
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile, status
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 
 from app.core.config import get_settings
 from app.core.exceptions import AppError
-from app.models.validation import BenchmarkData, ListingValidationInput, ValidationResult
+from app.models.validation import BenchmarkData, ListingValidationInput, ValidationResult, AIReviewSummary
 from app.services.db_service import fetch_latest_area_benchmark, save_validation_history
-from app.services.gemini_service import analyze_communication_log, analyze_visual_assets
-from app.services.aggregator_service import aggregate_area_benchmarks
+from app.services.gemini_service import (
+    analyze_multimodal,
+    generate_review_summary as gemini_generate_review_summary,
+    generate_review_conclusion,
+)
+from app.services.aggregator_service import aggregate_area_benchmarks, extract_listing_from_url, discover_listings
 from app.services.validation_engine import calculate_trust_score
 
 router = APIRouter(tags=["validation"])
+
+class URLRequest(BaseModel):
+    url: str
+
+@router.post("/extract-url")
+async def api_extract_url(request: URLRequest) -> dict:
+    return await extract_listing_from_url(request.url)
+
+@router.get("/discover")
+async def api_discover_listings(area: str, limit: int = 10):
+    return await discover_listings(area, limit)
 
 
 def _parse_form_data(raw_json: str | None) -> ListingValidationInput:
@@ -108,16 +123,17 @@ async def validate_listing(
 ) -> ValidationResult:
     parsed_form = _parse_form_data(form_data or listing_data)
 
-    chat_text, image_bytes = await asyncio.gather(
+    chat_text, image_bytes_list = await asyncio.gather(
         _read_chat_file(chat_file or whatsapp_chat_export),
         _read_images(images),
     )
 
-    benchmark_raw, chat_analysis, visual_analysis = await asyncio.gather(
+    # Parallelize Benchmark and Multimodal AI Analysis
+    benchmark_raw, analyses = await asyncio.gather(
         _benchmark_for_area(parsed_form.area_name),
-        analyze_communication_log(chat_text),
-        analyze_visual_assets(image_bytes),
+        analyze_multimodal(chat_text, image_bytes_list, parsed_form.area_name)
     )
+    chat_analysis, visual_analysis = analyses
 
     benchmark = _benchmark_or_none(benchmark_raw, parsed_form.area_name)
     result = calculate_trust_score(
@@ -131,7 +147,7 @@ async def validate_listing(
     conclusion = await generate_review_conclusion(
         risk_score=result.anomaly_score,
         red_flags=red_flags,
-        facilities=parsed_form.facilities,
+        facilities=parsed_form.room_facilities + parsed_form.shared_facilities,
     )
     result.conclusion_summary = conclusion
 
@@ -146,3 +162,12 @@ async def validate_listing(
         },
     )
     return result
+
+from pydantic import BaseModel
+
+class ReviewSummaryRequest(BaseModel):
+    reviews: list[str]
+
+@router.post("/review-summary", response_model=AIReviewSummary)
+async def create_review_summary(request: ReviewSummaryRequest) -> AIReviewSummary:
+    return await gemini_generate_review_summary(request.reviews)

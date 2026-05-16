@@ -193,10 +193,23 @@ async def aggregate_area_benchmarks(area_name: str = DEFAULT_AREA) -> dict[str, 
             502,
         )
 
+    premium_keywords = ["ac", "air panas", "water heater", "eksklusif", "premium", "vip"]
+    premium_prices = []
+    standard_prices = []
+    for sample in samples:
+        name_lower = sample["name"].lower()
+        is_premium = any(kw in name_lower for kw in premium_keywords)
+        if is_premium:
+            premium_prices.append(sample["price"])
+        else:
+            standard_prices.append(sample["price"])
+
     payload = {
         "area_name": area_name,
         "mean_price": round(mean(prices), 2),
         "median_price": round(median(prices), 2),
+        "mean_price_standard": round(mean(standard_prices), 2) if standard_prices else None,
+        "mean_price_premium": round(mean(premium_prices), 2) if premium_prices else None,
         "sample_size": len(prices),
         "source": MAMIKOS_BASE_URL,
         "source_url": source_urls[0],
@@ -206,3 +219,198 @@ async def aggregate_area_benchmarks(area_name: str = DEFAULT_AREA) -> dict[str, 
     }
     await save_market_benchmark(area_name, payload)
     return payload
+
+async def extract_listing_from_url(url: str) -> dict[str, Any]:
+    settings = get_settings()
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+    
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(settings.scraper_timeout_seconds),
+        headers=headers,
+        follow_redirects=True,
+    ) as client:
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise AppError(
+                "EXTRACTION_FAILED",
+                f"Failed to fetch URL: {str(exc)}",
+                400,
+            ) from exc
+            
+    html = response.text
+    
+    # Try to extract the JSON 'detail' object from the script tag
+    detail = {}
+    idx = html.find("var detail = {")
+    if idx != -1:
+        start = html.find("{", idx)
+        depth = 0
+        end = -1
+        for i in range(start, len(html)):
+            if html[i] == "{":
+                depth += 1
+            elif html[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    break
+        if end != -1:
+            try:
+                detail = json.loads(html[start:end])
+            except Exception:
+                pass
+
+    if detail:
+        listing_name = detail.get("room_title") or detail.get("name_slug") or "Extracted Listing"
+        price = int(detail.get("price_monthly") or 0)
+        
+        # Mapping Mamikos keys to our schema
+        room_raw = list(detail.get("fac_room", [])) + list(detail.get("fac_bath", []))
+        shared_raw = list(detail.get("fac_share", [])) + list(detail.get("fac_park", []))
+        
+        # Simple normalization
+        mapping = {
+            "ac": "AC",
+            "mandi dalam": "K. Mandi Dalam",
+            "kasur": "Kasur",
+            "lemari": "Lemari",
+            "wifi": "WiFi",
+            "parkir": "Parkir",
+            "dapur": "Dapur",
+            "air panas": "Air panas",
+            "meja": "Meja",
+            "kursi": "Kursi"
+        }
+        
+        room_facilities = []
+        for f in room_raw:
+            f_low = f.lower()
+            for key, val in mapping.items():
+                if key in f_low and val not in room_facilities:
+                    room_facilities.append(val)
+                    
+        shared_facilities = []
+        for f in shared_raw:
+            f_low = f.lower()
+            for key, val in mapping.items():
+                if key in f_low and val not in shared_facilities:
+                    shared_facilities.append(val)
+
+        return {
+            "listing_name": listing_name,
+            "price": price,
+            "room_facilities": room_facilities,
+            "shared_facilities": shared_facilities,
+            "listing_url": url,
+        }
+
+    # Fallback to old heuristic method
+    soup = BeautifulSoup(html, "html.parser")
+    title_tag = soup.find("h1")
+    title = title_tag.get_text(strip=True) if title_tag else "Extracted Listing"
+    
+    price = 0
+    price_tags = soup.find_all(string=re.compile(r"Rp\s?[\d.]+"))
+    for p in price_tags:
+        parsed = _parse_price(p)
+        if parsed:
+            price = parsed
+            break
+            
+    text_content = html.lower()
+    room_facilities = []
+    shared_facilities = []
+    
+    if "ac" in text_content: room_facilities.append("AC")
+    if "mandi dalam" in text_content: room_facilities.append("K. Mandi Dalam")
+    if "kasur" in text_content: room_facilities.append("Kasur")
+    
+    if "wifi" in text_content: shared_facilities.append("WiFi")
+
+    return {
+        "listing_name": title,
+        "price": price,
+        "room_facilities": room_facilities,
+        "shared_facilities": shared_facilities,
+        "listing_url": url,
+    }
+
+async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, Any]]:
+    """
+    Search and discover listings for a specific area.
+    Because search pages are heavily protected by JS, 
+    this logic uses the aggregator logic to get URLs first,
+    then scrapes the first few details for high quality data.
+    """
+    settings = get_settings()
+    query = quote_plus(area_name)
+    search_url = f"{MAMIKOS_BASE_URL}search?q={query}&sort=price%2Casc"
+    
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+    
+    room_urls = []
+    # Fallback high-quality URLs for popular areas (Hackathon Demo Support)
+    demo_fallbacks = {
+        "depok": [
+            "https://mamikos.com/room/kost-kabupaten-sleman-kost-campur-eksklusif-kost-singgahsini-pondok-garini-syariah-tipe-d-yogyakarta",
+            "https://mamikos.com/room/kost-sleman-kost-putra-eksklusif-kost-singgahsini-rumah-tentrem-depok-sleman-yogyakarta",
+            "https://mamikos.com/room/kost-sleman-kost-putri-murah-kost-singgahsini-puspita-depok-sleman",
+        ],
+        "ugm": [
+            "https://mamikos.com/room/kost-sleman-kost-campur-murah-kost-mamirooms-cendrawasih-depok-sleman",
+            "https://mamikos.com/room/kost-sleman-kost-putra-murah-kost-singgahsini-p-54-depok-sleman",
+        ]
+    }
+    
+    area_key = area_name.lower()
+    for key, urls in demo_fallbacks.items():
+        if key in area_key:
+            room_urls.extend(urls)
+
+    async with httpx.AsyncClient(timeout=30.0, headers=headers, follow_redirects=True) as client:
+        try:
+            resp = await client.get(search_url)
+            # Find all room links in the raw HTML using regex
+            matches = re.findall(r'href="(/room/[^"]+)"', resp.text)
+            for m in matches:
+                full_url = f"https://mamikos.com{m.split('?')[0]}"
+                if full_url not in room_urls:
+                    room_urls.append(full_url)
+        except Exception:
+            pass
+
+    # If regex failed, try a fallback area search pattern
+    if not room_urls or len(room_urls) < 3:
+        alt_search = f"https://mamikos.com/kost/kost-{area_name.lower().replace(' ', '-')}-murah"
+        try:
+            resp = await client.get(alt_search)
+            matches = re.findall(r'href="(/room/[^"]+)"', resp.text)
+            for m in matches:
+                full_url = f"https://mamikos.com{m.split('?')[0]}"
+                if full_url not in room_urls:
+                    room_urls.append(full_url)
+        except Exception:
+            pass
+
+    results = []
+    # Scrape detail for the first N listings to get accurate info
+    for url in room_urls[:limit]:
+        try:
+            data = await extract_listing_from_url(url)
+            results.append(data)
+        except Exception:
+            continue
+    
+    # If we got results, they are high quality. We can use them to seed the benchmark and save to DB!
+    if results:
+        # Save listings to Firestore for the "Explore" feature
+        await save_scraped_listings(results)
+        
+        prices = [r["price"] for r in results if r["price"] > 0]
+        if prices:
+            # Simple update to the benchmark logic (optional: can trigger full save_market_benchmark here)
+            pass
+            
+    return results
