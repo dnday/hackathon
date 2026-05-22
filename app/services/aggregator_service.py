@@ -1,7 +1,7 @@
 from __future__ import annotations
 import re
 from statistics import mean, median
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import quote_plus
 
 import httpx

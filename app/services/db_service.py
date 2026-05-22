@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio
 from datetime import timezone, datetime
-from typing import Any
+from typing import Any, Optional
 
 from google.api_core import exceptions as google_exceptions
 

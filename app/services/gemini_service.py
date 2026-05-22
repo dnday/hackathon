@@ -2,7 +2,7 @@ from __future__ import annotations
 import asyncio
 import json
 from io import BytesIO
-from typing import Any
+from typing import Any, Optional
 
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
