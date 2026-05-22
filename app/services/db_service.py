@@ -134,6 +134,26 @@ async def is_firestore_available() -> bool:
     return await asyncio.to_thread(_is_firestore_available_sync)
 
 
+def _fetch_scraped_listing_sync(url: str) -> dict[str, Any] | None:
+    client = get_firestore_client()
+    if client is None:
+        return None
+
+    try:
+        docs = client.collection("scraped_listings").where("listing_url", "==", url).limit(1).get(retry=None, timeout=3)
+        if not docs:
+            return None
+        data = docs[0].to_dict() or {}
+        data["id"] = docs[0].id
+        return data
+    except google_exceptions.GoogleAPICallError:
+        return None
+
+
+async def fetch_scraped_listing(url: str) -> dict[str, Any] | None:
+    return await asyncio.to_thread(_fetch_scraped_listing_sync, url)
+
+
 __all__ = [
     "fetch_latest_area_benchmark",
     "initialize_firebase",
@@ -141,4 +161,5 @@ __all__ = [
     "save_market_benchmark",
     "save_validation_history",
     "save_scraped_listings",
+    "fetch_scraped_listing",
 ]

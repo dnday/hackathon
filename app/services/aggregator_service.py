@@ -4,11 +4,13 @@ from typing import Any
 from urllib.parse import quote_plus
 
 import httpx
+import json
 from bs4 import BeautifulSoup
 
 from app.core.config import get_settings
 from app.core.exceptions import AppError
-from app.services.db_service import save_market_benchmark
+from app.services.db_service import fetch_scraped_listing, save_market_benchmark, save_scraped_listings
+from datetime import UTC, datetime, timedelta
 
 MAMIKOS_BASE_URL = "https://mamikos.com/"
 DEFAULT_AREA = "UGM Yogyakarta"
@@ -221,6 +223,13 @@ async def aggregate_area_benchmarks(area_name: str = DEFAULT_AREA) -> dict[str, 
     return payload
 
 async def extract_listing_from_url(url: str) -> dict[str, Any]:
+    cached = await fetch_scraped_listing(url)
+    if cached and "updated_at" in cached:
+        updated_at = cached["updated_at"]
+        if isinstance(updated_at, datetime):
+            if datetime.now(UTC) - updated_at < timedelta(days=14):
+                return cached
+
     settings = get_settings()
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
     
@@ -298,13 +307,15 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
                 if key in f_low and val not in shared_facilities:
                     shared_facilities.append(val)
 
-        return {
+        result_data = {
             "listing_name": listing_name,
             "price": price,
             "room_facilities": room_facilities,
             "shared_facilities": shared_facilities,
             "listing_url": url,
         }
+        await save_scraped_listings([result_data])
+        return result_data
 
     # Fallback to old heuristic method
     soup = BeautifulSoup(html, "html.parser")
@@ -329,13 +340,15 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
     
     if "wifi" in text_content: shared_facilities.append("WiFi")
 
-    return {
+    result_data = {
         "listing_name": title,
         "price": price,
         "room_facilities": room_facilities,
         "shared_facilities": shared_facilities,
         "listing_url": url,
     }
+    await save_scraped_listings([result_data])
+    return result_data
 
 async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, Any]]:
     """
