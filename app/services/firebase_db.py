@@ -1,3 +1,4 @@
+from __future__ import annotations
 from app.services.db_service import (
     fetch_latest_area_benchmark,
     initialize_firebase,

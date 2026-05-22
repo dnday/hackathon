@@ -1,3 +1,4 @@
+from __future__ import annotations
 CHAT_RISK_SYSTEM_PROMPT = """
 You are KosCheck's fraud-risk analyst for Indonesian rental listings.
 Analyze WhatsApp chat exports for scam signals only. Do not invent facts.

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import re
 from statistics import mean, median
 from typing import Any

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from fastapi import APIRouter, BackgroundTasks, Header, status
 
 from app.core.config import get_settings
