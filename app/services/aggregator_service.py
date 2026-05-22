@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.services.db_service import fetch_scraped_listing, save_market_benchmark, save_scraped_listings
-from datetime import UTC, datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 MAMIKOS_BASE_URL = "https://mamikos.com/"
 DEFAULT_AREA = "UGM Yogyakarta"
@@ -228,7 +228,7 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
     if cached and "updated_at" in cached:
         updated_at = cached["updated_at"]
         if isinstance(updated_at, datetime):
-            if datetime.now(UTC) - updated_at < timedelta(days=14):
+            if datetime.now(timezone.utc) - updated_at < timedelta(days=14):
                 return cached
 
     settings = get_settings()

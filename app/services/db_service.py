@@ -1,6 +1,6 @@
 from __future__ import annotations
 import asyncio
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 
 from google.api_core import exceptions as google_exceptions
@@ -59,7 +59,7 @@ def _save_market_benchmark_sync(area_name: str, payload: dict[str, Any]) -> Opti
             {
                 **payload,
                 "area_name": area_name,
-                "updated_at": datetime.now(UTC),
+                "updated_at": datetime.now(timezone.utc),
             },
             retry=None,
             timeout=3,
@@ -82,7 +82,7 @@ def _save_validation_history_sync(payload: dict[str, Any]) -> Optional[str]:
     document = client.collection(settings.firestore_history_collection).document()
     try:
         document.set(
-            {**payload, "created_at": datetime.now(UTC)},
+            {**payload, "created_at": datetime.now(timezone.utc)},
             retry=None,
             timeout=3,
         )
@@ -113,7 +113,7 @@ def _save_scraped_listings_sync(listings: list[dict[str, Any]]) -> None:
         
         batch.set(doc_ref, {
             **item,
-            "updated_at": datetime.now(UTC),
+            "updated_at": datetime.now(timezone.utc),
             "is_scraped": True
         }, merge=True)
     
