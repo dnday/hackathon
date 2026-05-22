@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 import os
 from pathlib import Path
 
@@ -24,7 +25,7 @@ def initialize_firebase() -> None:
         firebase_admin.initialize_app()
 
 
-def get_firestore_client() -> Client | None:
+def get_firestore_client() -> Optional[Client]:
     if not firebase_admin._apps:
         initialize_firebase()
     if not firebase_admin._apps:

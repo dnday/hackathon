@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Header, status
 
 from app.core.config import get_settings
@@ -12,7 +13,7 @@ async def _run_benchmark_update(area_name: str) -> None:
     await aggregate_area_benchmarks(area_name)
 
 
-def _verify_cron_key(provided_key: str | None) -> None:
+def _verify_cron_key(provided_key: Optional[str]) -> None:
     expected_key = get_settings().cron_api_key
     if not expected_key:
         raise AppError(
@@ -32,7 +33,7 @@ def _verify_cron_key(provided_key: str | None) -> None:
 async def update_benchmarks(
     background_tasks: BackgroundTasks,
     area_name: str = DEFAULT_AREA,
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
 ) -> dict[str, str]:
     _verify_cron_key(x_api_key)
     background_tasks.add_task(_run_benchmark_update, area_name)

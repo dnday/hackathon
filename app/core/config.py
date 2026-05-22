@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 from functools import lru_cache
 
 from pydantic import Field
@@ -10,12 +11,12 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     environment: str = "development"
 
-    google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
-    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
+    google_api_key: Optional[str] = Field(default=None, alias="GOOGLE_API_KEY")
+    gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
     gemini_model: str = Field(default="gemini-3-flash-preview", alias="GEMINI_MODEL")
-    cron_api_key: str | None = Field(default=None, alias="CRON_API_KEY")
+    cron_api_key: Optional[str] = Field(default=None, alias="CRON_API_KEY")
 
-    firebase_credentials_path: str | None = Field(
+    firebase_credentials_path: Optional[str] = Field(
         default=None, alias="FIREBASE_CREDENTIALS_PATH"
     )
     firestore_history_collection: str = "validation_history"
@@ -40,7 +41,7 @@ class Settings(BaseSettings):
     )
 
     @property
-    def resolved_gemini_api_key(self) -> str | None:
+    def resolved_gemini_api_key(self) -> Optional[str]:
         return self.google_api_key or self.gemini_api_key
 
 

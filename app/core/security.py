@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 import asyncio
 
 import firebase_admin
@@ -13,8 +14,8 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def verify_firebase_token(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> dict | None:
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+) -> Optional[dict]:
     if credentials is None:
         return None
     if not firebase_admin._apps:

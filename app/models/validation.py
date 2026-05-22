@@ -12,16 +12,16 @@ class ListingValidationInput(BaseModel):
     area_name: str = Field(..., min_length=2, max_length=140)
     price: float = Field(..., gt=0)
     owner_willing_videocall: bool
-    contact_name: str | None = Field(default=None, max_length=120)
-    bank_account_name: str | None = Field(default=None, max_length=120)
-    listing_url: str | None = Field(default=None, max_length=600)
+    contact_name: Optional[str] = Field(default=None, max_length=120)
+    bank_account_name: Optional[str] = Field(default=None, max_length=120)
+    listing_url: Optional[str] = Field(default=None, max_length=600)
     room_facilities: list[str] = Field(default_factory=list)
     shared_facilities: list[str] = Field(default_factory=list)
-    urgency_level: str | None = Field(default=None, max_length=50)
-    has_testimonials: bool | None = Field(default=None)
-    photos_provided: str | None = Field(default=None, max_length=50)
-    specific_address_provided: bool | None = Field(default=None)
-    bank_account_name_match: bool | None = Field(default=None)
+    urgency_level: Optional[str] = Field(default=None, max_length=50)
+    has_testimonials: Optional[bool] = Field(default=None)
+    photos_provided: Optional[str] = Field(default=None, max_length=50)
+    specific_address_provided: Optional[bool] = Field(default=None)
+    bank_account_name_match: Optional[bool] = Field(default=None)
     fraud_history_found: bool = Field(default=False)
 
     @model_validator(mode="before")
@@ -42,7 +42,7 @@ class ListingValidationInput(BaseModel):
 
     @field_validator("contact_name", "bank_account_name", "listing_url")
     @classmethod
-    def blank_to_none(cls, value: str | None) -> str | None:
+    def blank_to_none(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return None
         stripped = value.strip()
@@ -53,13 +53,13 @@ class BenchmarkData(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     area_name: str
-    mean_price: float | None = Field(default=None, ge=0)
-    median_price: float | None = Field(default=None, ge=0)
-    mean_price_standard: float | None = Field(default=None, ge=0)
-    mean_price_premium: float | None = Field(default=None, ge=0)
+    mean_price: Optional[float] = Field(default=None, ge=0)
+    median_price: Optional[float] = Field(default=None, ge=0)
+    mean_price_standard: Optional[float] = Field(default=None, ge=0)
+    mean_price_premium: Optional[float] = Field(default=None, ge=0)
     sample_size: int = Field(default=0, ge=0)
-    source_url: str | None = None
-    updated_at: datetime | None = None
+    source_url: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
 
 class CommunicationAnalysis(BaseModel):
@@ -70,17 +70,17 @@ class CommunicationAnalysis(BaseModel):
     urgency_detected: bool
     bot_testimonial_detected: bool
     is_cross_check_fail: bool = False
-    cross_check_details: str | None = None
+    cross_check_details: Optional[str] = None
     summary: str = Field(..., min_length=1, max_length=2000)
 
 
 class VisualAnalysis(BaseModel):
     room_interior_detected: bool
     watermark_detected: bool
-    watermark_source: str | None = None
+    watermark_source: Optional[str] = None
     realistic_images: bool
     metadata_match_risk: int = 0
-    metadata_summary: str | None = None
+    metadata_summary: Optional[str] = None
     summary: str = Field(..., min_length=1, max_length=2000)
 
 
@@ -92,9 +92,9 @@ class DetectedAnomaly(BaseModel):
 
 class PriceComparison(BaseModel):
     listing_price: float
-    area_mean_price: float | None
-    area_median_price: float | None
-    difference_from_mean_percentage: float | None
+    area_mean_price: Optional[float]
+    area_median_price: Optional[float]
+    difference_from_mean_percentage: Optional[float]
 
 
 class ValidationResult(BaseModel):
@@ -118,10 +118,10 @@ class AIReviewSummary(BaseModel):
 class KosListing(BaseModel):
     name: str
     address: str
-    coordinates: dict[str, float] | None = None
+    coordinates: Optional[dict[str, float]] = None
     price_per_month: float
     source: str
-    description: str | None = None
+    description: Optional[str] = None
     photos: list[str] = Field(default_factory=list)
     room_facilities: list[str] = Field(default_factory=list)
     shared_facilities: list[str] = Field(default_factory=list)

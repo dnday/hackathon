@@ -78,7 +78,7 @@ def _prepare_images(images: list[bytes]) -> list[Image.Image]:
             prepared.append(image.convert("RGB").copy())
     return prepared
 
-def _model() -> genai.GenerativeModel | None:
+def _model() -> genai.Optional[GenerativeModel]:
     settings = get_settings()
     api_key = settings.resolved_gemini_api_key
     if not api_key:

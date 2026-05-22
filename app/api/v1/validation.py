@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 import asyncio
 import json
 
@@ -31,7 +32,7 @@ async def api_discover_listings(area: str, limit: int = 10):
     return await discover_listings(area, limit)
 
 
-def _parse_form_data(raw_json: str | None) -> ListingValidationInput:
+def _parse_form_data(raw_json: Optional[str]) -> ListingValidationInput:
     if raw_json is None:
         raise AppError(
             "MISSING_FORM_DATA",
@@ -55,7 +56,7 @@ def _parse_form_data(raw_json: str | None) -> ListingValidationInput:
         ) from exc
 
 
-async def _read_chat_file(file: UploadFile | None) -> str:
+async def _read_chat_file(file: Optional[UploadFile]) -> str:
     if file is None:
         return ""
 
@@ -70,7 +71,7 @@ async def _read_chat_file(file: UploadFile | None) -> str:
     return raw.decode("utf-8", errors="ignore")
 
 
-async def _read_images(files: list[UploadFile] | None) -> list[bytes]:
+async def _read_images(files: Optional[list[UploadFile]]) -> list[bytes]:
     settings = get_settings()
     if not files:
         return []
@@ -97,13 +98,13 @@ async def _read_images(files: list[UploadFile] | None) -> list[bytes]:
     return images
 
 
-def _benchmark_or_none(raw: dict | None, area_name: str) -> BenchmarkData | None:
+def _benchmark_or_none(raw: Optional[dict], area_name: str) -> Optional[BenchmarkData]:
     if raw is None:
         return None
     return BenchmarkData.model_validate({"area_name": area_name, **raw})
 
 
-async def _benchmark_for_area(area_name: str) -> dict | None:
+async def _benchmark_for_area(area_name: str) -> Optional[dict]:
     benchmark = await fetch_latest_area_benchmark(area_name)
     if benchmark is not None:
         return benchmark
@@ -116,11 +117,11 @@ async def _benchmark_for_area(area_name: str) -> dict | None:
 @router.post("/validate-listing", response_model=ValidationResult)
 async def validate_listing(
     background_tasks: BackgroundTasks,
-    form_data: str | None = Form(default=None),
-    listing_data: str | None = Form(default=None),
-    chat_file: UploadFile | None = File(default=None),
-    whatsapp_chat_export: UploadFile | None = File(default=None),
-    images: list[UploadFile] | None = File(default=None),
+    form_data: Optional[str] = Form(default=None),
+    listing_data: Optional[str] = Form(default=None),
+    chat_file: Optional[UploadFile] = File(default=None),
+    whatsapp_chat_export: Optional[UploadFile] = File(default=None),
+    images: Optional[list[UploadFile]] = File(default=None),
 ) -> ValidationResult:
     parsed_form = _parse_form_data(form_data or listing_data)
 

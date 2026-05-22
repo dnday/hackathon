@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 from app.models.validation import (
     BenchmarkData,
     CommunicationAnalysis,
@@ -20,7 +21,7 @@ def _status(score: int) -> str:
 
 def _price_comparison(
     form_data: ListingValidationInput,
-    benchmark: BenchmarkData | None,
+    benchmark: Optional[BenchmarkData],
 ) -> PriceComparison:
     mean_price = benchmark.mean_price if benchmark else None
     median_price = benchmark.median_price if benchmark else None
@@ -49,7 +50,7 @@ def _price_comparison(
 
 def calculate_trust_score(
     form_data: ListingValidationInput,
-    db_benchmark: BenchmarkData | None,
+    db_benchmark: Optional[BenchmarkData],
     chat_analysis: CommunicationAnalysis | dict,
     visual_analysis: VisualAnalysis | dict,
 ) -> ValidationResult:

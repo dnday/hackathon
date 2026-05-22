@@ -47,7 +47,7 @@ AREA_FALLBACK_MEANS = {
 }
 
 
-def _parse_price(text: str) -> int | None:
+def _parse_price(text: str) -> Optional[int]:
     for pattern in PRICE_PATTERNS:
         match = pattern.search(text)
         if match is None:
@@ -158,7 +158,7 @@ async def aggregate_area_benchmarks(area_name: str = DEFAULT_AREA) -> dict[str, 
     headers = {"User-Agent": settings.scraper_user_agent}
     source_urls = _source_urls(area_name)
     samples: list[dict[str, Any]] = []
-    last_error: Exception | None = None
+    last_error: Optional[Exception] = None
 
     async with httpx.AsyncClient(
         timeout=httpx.Timeout(settings.scraper_timeout_seconds),

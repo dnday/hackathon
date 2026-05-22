@@ -16,7 +16,7 @@ def _document_id(area_name: str) -> str:
     return "-".join(part for part in normalized.split("-") if part) or "unknown-area"
 
 
-def _fetch_latest_area_benchmark_sync(area_name: str) -> dict[str, Any] | None:
+def _fetch_latest_area_benchmark_sync(area_name: str) -> Optional[dict[str, Any]]:
     client = get_firestore_client()
     if client is None:
         return None
@@ -43,11 +43,11 @@ def _fetch_latest_area_benchmark_sync(area_name: str) -> dict[str, Any] | None:
     return data
 
 
-async def fetch_latest_area_benchmark(area_name: str) -> dict[str, Any] | None:
+async def fetch_latest_area_benchmark(area_name: str) -> Optional[dict[str, Any]]:
     return await asyncio.to_thread(_fetch_latest_area_benchmark_sync, area_name)
 
 
-def _save_market_benchmark_sync(area_name: str, payload: dict[str, Any]) -> str | None:
+def _save_market_benchmark_sync(area_name: str, payload: dict[str, Any]) -> Optional[str]:
     client = get_firestore_client()
     if client is None:
         return None
@@ -69,11 +69,11 @@ def _save_market_benchmark_sync(area_name: str, payload: dict[str, Any]) -> str 
     return document_id
 
 
-async def save_market_benchmark(area_name: str, payload: dict[str, Any]) -> str | None:
+async def save_market_benchmark(area_name: str, payload: dict[str, Any]) -> Optional[str]:
     return await asyncio.to_thread(_save_market_benchmark_sync, area_name, payload)
 
 
-def _save_validation_history_sync(payload: dict[str, Any]) -> str | None:
+def _save_validation_history_sync(payload: dict[str, Any]) -> Optional[str]:
     client = get_firestore_client()
     if client is None:
         return None
@@ -91,7 +91,7 @@ def _save_validation_history_sync(payload: dict[str, Any]) -> str | None:
     return document.id
 
 
-async def save_validation_history(payload: dict[str, Any]) -> str | None:
+async def save_validation_history(payload: dict[str, Any]) -> Optional[str]:
     return await asyncio.to_thread(_save_validation_history_sync, payload)
 
 
@@ -135,7 +135,7 @@ async def is_firestore_available() -> bool:
     return await asyncio.to_thread(_is_firestore_available_sync)
 
 
-def _fetch_scraped_listing_sync(url: str) -> dict[str, Any] | None:
+def _fetch_scraped_listing_sync(url: str) -> Optional[dict[str, Any]]:
     client = get_firestore_client()
     if client is None:
         return None
@@ -151,7 +151,7 @@ def _fetch_scraped_listing_sync(url: str) -> dict[str, Any] | None:
         return None
 
 
-async def fetch_scraped_listing(url: str) -> dict[str, Any] | None:
+async def fetch_scraped_listing(url: str) -> Optional[dict[str, Any]]:
     return await asyncio.to_thread(_fetch_scraped_listing_sync, url)
 
 
