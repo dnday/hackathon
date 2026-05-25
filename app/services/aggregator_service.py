@@ -403,15 +403,14 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
             decrypted_bytes = unpad(cipher.decrypt(base64.b64decode(enc_str)), AES.block_size)
             rooms_json = json.loads(decrypted_bytes.decode("utf-8"))
             
-            # 4. Extract slugs
+            # 4. Extract URLs from decrypted data
             for room in rooms_json:
-                slug = room.get("slug") or (room.get("room", {}).get("slug"))
-                if slug:
-                    room_urls.append(f"https://mamikos.com/room/{slug}")
+                url = room.get("share_url")
+                if url:
+                    room_urls.append(url)
                     
         except Exception as e:
             print(f"⚠️ Live decryption failed: {e}")
-            pass
 
     # Fallback high-quality ALIVE URL for Hackathon Demo if decryption fails
     if not room_urls:
