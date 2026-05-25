@@ -117,16 +117,14 @@ async def _benchmark_for_area(area_name: str) -> Optional[dict]:
 @router.post("/validate-listing", response_model=ValidationResult)
 async def validate_listing(
     background_tasks: BackgroundTasks,
-    form_data: Optional[str] = Form(default=None),
     listing_data: Optional[str] = Form(default=None),
     chat_file: Optional[UploadFile] = File(default=None),
-    whatsapp_chat_export: Optional[UploadFile] = File(default=None),
     images: Optional[list[UploadFile]] = File(default=None),
 ) -> ValidationResult:
-    parsed_form = _parse_form_data(form_data or listing_data)
+    parsed_form = _parse_form_data(listing_data)
 
     chat_text, image_bytes_list = await asyncio.gather(
-        _read_chat_file(chat_file or whatsapp_chat_export),
+        _read_chat_file(chat_file),
         _read_images(images),
     )
 
