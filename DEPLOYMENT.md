@@ -95,11 +95,38 @@ docker build -t koscheck-backend .
 Run:
 
 ```bash
-docker run --rm -p 8000:8000 \
+docker run -d -p 8000:8000 \
+  --name koscheck_backend \
   --env-file .env \
   -v "$(pwd)/secrets:/app/secrets:ro" \
   koscheck-backend
 ```
+
+### Menggunakan Docker Compose (Rekomendasi)
+
+Untuk deployment dan manajemen container yang lebih mudah, gunakan **Docker Compose**.
+Jalankan perintah berikut di direktori project (pastikan `docker-compose.yml` sudah ada):
+
+```bash
+docker compose up -d
+```
+
+### Build Ulang / Update Otomatis
+
+Setiap kali ada perubahan pada kode sumber (misalnya setelah Anda melakukan `git pull`), container Docker harus di-*build* ulang agar perubahan tersebut masuk.
+
+Anda bisa melakukan update secara manual dengan:
+```bash
+git pull
+docker compose up -d --build
+```
+
+**Atau menggunakan skrip otomatis:**
+Gunakan file `deploy.sh` yang telah disediakan untuk memperbarui server hanya dengan 1 perintah:
+```bash
+./deploy.sh
+```
+*(Catatan: pastikan file sudah executable dengan menjalankan `chmod +x deploy.sh`)*
 
 ## Cron Setup
 

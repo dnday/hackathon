@@ -29,6 +29,7 @@ async def test_endpoints():
             "listing_name": "Kost Mamirooms",
             "price": 1500000,
             "area_name": "UGM Yogyakarta",
+            "owner_willing_videocall": True,
             "room_facilities": ["AC", "Kasur"],
             "shared_facilities": ["WiFi"]
         }
