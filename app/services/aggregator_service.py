@@ -395,18 +395,18 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
         except Exception:
             pass
 
-    # If regex failed, try a fallback area search pattern
-    if not room_urls or len(room_urls) < 3:
-        alt_search = f"https://mamikos.com/kost/kost-{area_name.lower().replace(' ', '-')}-murah"
-        try:
-            resp = await client.get(alt_search)
-            matches = re.findall(r'href="(/room/[^"]+)"', resp.text)
-            for m in matches:
-                full_url = f"https://mamikos.com{m.split('?')[0]}"
-                if full_url not in room_urls:
-                    room_urls.append(full_url)
-        except Exception:
-            pass
+        # If regex failed, try a fallback area search pattern
+        if not room_urls or len(room_urls) < 3:
+            alt_search = f"https://mamikos.com/kost/kost-{area_name.lower().replace(' ', '-')}-murah"
+            try:
+                resp = await client.get(alt_search)
+                matches = re.findall(r'href="(/room/[^"]+)"', resp.text)
+                for m in matches:
+                    full_url = f"https://mamikos.com{m.split('?')[0]}"
+                    if full_url not in room_urls:
+                        room_urls.append(full_url)
+            except Exception:
+                pass
 
     results = []
     # Scrape detail for the first N listings to get accurate info
