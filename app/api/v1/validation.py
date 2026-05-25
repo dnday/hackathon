@@ -8,8 +8,8 @@ from pydantic import ValidationError, BaseModel
 
 from app.core.config import get_settings
 from app.core.exceptions import AppError
-from app.models.validation import BenchmarkData, ListingValidationInput, ValidationResult, AIReviewSummary
-from app.services.db_service import fetch_latest_area_benchmark, save_validation_history
+from app.models.validation import BenchmarkData, ListingValidationInput, ValidationResult, AIReviewSummary, HistoryListItem
+from app.services.db_service import fetch_latest_area_benchmark, save_validation_history, fetch_validation_history, fetch_validation_record_by_id
 from app.services.gemini_service import (
     analyze_multimodal,
     generate_review_summary as gemini_generate_review_summary,
@@ -151,16 +151,16 @@ async def validate_listing(
     )
     result.conclusion_summary = conclusion
 
-    background_tasks.add_task(
-        save_validation_history,
+    record_id = await save_validation_history(
         {
             "form_data": parsed_form.model_dump(mode="json"),
             "benchmark": benchmark.model_dump(mode="json") if benchmark else None,
             "chat_analysis": chat_analysis,
             "visual_analysis": visual_analysis,
             "result": result.model_dump(mode="json"),
-        },
+        }
     )
+    result.record_id = record_id
     return result
 
 from pydantic import BaseModel
@@ -171,3 +171,32 @@ class ReviewSummaryRequest(BaseModel):
 @router.post("/review-summary", response_model=AIReviewSummary)
 async def create_review_summary(request: ReviewSummaryRequest) -> AIReviewSummary:
     return await gemini_generate_review_summary(request.reviews)
+
+@router.get("/history", response_model=list[HistoryListItem])
+async def get_validation_history(device_id: str, limit: int = 20) -> list[HistoryListItem]:
+    if not device_id:
+        return []
+    raw_records = await fetch_validation_history(device_id, limit)
+    items = []
+    for rec in raw_records:
+        form = rec.get("form_data", {})
+        res = rec.get("result", {})
+        items.append(HistoryListItem(
+            id=rec["id"],
+            listing_name=form.get("listing_name", ""),
+            area_name=form.get("area_name", ""),
+            price=form.get("price", 0),
+            anomaly_score=res.get("anomaly_score", 0),
+            status=res.get("status", ""),
+            conclusion_summary=res.get("conclusion_summary", ""),
+            image_url=form.get("image_url"),
+            created_at=rec.get("created_at"),
+        ))
+    return items
+
+@router.get("/history/{record_id}")
+async def get_validation_record(record_id: str) -> dict:
+    record = await fetch_validation_record_by_id(record_id)
+    if not record:
+        raise AppError("RECORD_NOT_FOUND", "History record not found", 404)
+    return record

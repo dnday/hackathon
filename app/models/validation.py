@@ -11,6 +11,7 @@ class ListingValidationInput(BaseModel):
     listing_name: str = Field(..., min_length=2, max_length=180)
     area_name: str = Field(..., min_length=2, max_length=140)
     price: float = Field(..., gt=0)
+    device_id: Optional[str] = Field(default=None, max_length=100)
     owner_willing_videocall: bool
     contact_name: Optional[str] = Field(default=None, max_length=120)
     bank_account_name: Optional[str] = Field(default=None, max_length=120)
@@ -98,6 +99,7 @@ class PriceComparison(BaseModel):
 
 
 class ValidationResult(BaseModel):
+    record_id: Optional[str] = None
     anomaly_score: int = Field(..., ge=0, le=100)
     status: str
     detected_anomalies: list[DetectedAnomaly]
@@ -120,8 +122,21 @@ class KosListing(BaseModel):
     address: str
     coordinates: Optional[dict[str, float]] = None
     price_per_month: float
-    source: str
+    source: str = "Mamikos"
+    image_url: Optional[str] = None
     description: Optional[str] = None
     photos: list[str] = Field(default_factory=list)
     room_facilities: list[str] = Field(default_factory=list)
     shared_facilities: list[str] = Field(default_factory=list)
+
+
+class HistoryListItem(BaseModel):
+    id: str
+    listing_name: str
+    area_name: str
+    price: float
+    anomaly_score: int
+    status: str
+    conclusion_summary: str
+    image_url: Optional[str] = None
+    created_at: datetime

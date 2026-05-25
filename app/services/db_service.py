@@ -95,6 +95,54 @@ async def save_validation_history(payload: dict[str, Any]) -> Optional[str]:
     return await asyncio.to_thread(_save_validation_history_sync, payload)
 
 
+def _fetch_validation_history_sync(device_id: str, limit: int = 20) -> list[dict[str, Any]]:
+    client = get_firestore_client()
+    if client is None:
+        return []
+    settings = get_settings()
+    try:
+        docs = (
+            client.collection(settings.firestore_history_collection)
+            .where("form_data.device_id", "==", device_id)
+            .get(retry=None, timeout=5)
+        )
+        results = []
+        for doc in docs:
+            data = doc.to_dict() or {}
+            data["id"] = doc.id
+            results.append(data)
+        
+        # Sort in memory to avoid composite index requirement
+        results.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+        return results[:limit]
+    except google_exceptions.GoogleAPICallError:
+        return []
+
+
+async def fetch_validation_history(device_id: str, limit: int = 20) -> list[dict[str, Any]]:
+    return await asyncio.to_thread(_fetch_validation_history_sync, device_id, limit)
+
+
+def _fetch_validation_record_sync(record_id: str) -> Optional[dict[str, Any]]:
+    client = get_firestore_client()
+    if client is None:
+        return None
+    settings = get_settings()
+    try:
+        doc = client.collection(settings.firestore_history_collection).document(record_id).get(retry=None, timeout=3)
+        if not doc.exists:
+            return None
+        data = doc.to_dict() or {}
+        data["id"] = doc.id
+        return data
+    except google_exceptions.GoogleAPICallError:
+        return None
+
+
+async def fetch_validation_record_by_id(record_id: str) -> Optional[dict[str, Any]]:
+    return await asyncio.to_thread(_fetch_validation_record_sync, record_id)
+
+
 def _save_scraped_listings_sync(listings: list[dict[str, Any]]) -> None:
     client = get_firestore_client()
     if client is None or not listings:
@@ -145,6 +193,9 @@ def _fetch_scraped_listing_sync(url: str) -> Optional[dict[str, Any]]:
         if not docs:
             return None
         data = docs[0].to_dict() or {}
+        # Force re-scrape if it's old cached data without the new enriched fields (like 'source')
+        if "source" not in data:
+            return None
         data["id"] = docs[0].id
         return data
     except google_exceptions.GoogleAPICallError:
@@ -161,6 +212,8 @@ __all__ = [
     "is_firestore_available",
     "save_market_benchmark",
     "save_validation_history",
+    "fetch_validation_history",
+    "fetch_validation_record_by_id",
     "save_scraped_listings",
     "fetch_scraped_listing",
 ]

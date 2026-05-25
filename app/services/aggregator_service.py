@@ -232,7 +232,7 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
     if cached and "updated_at" in cached:
         updated_at = cached["updated_at"]
         if isinstance(updated_at, datetime):
-            if datetime.now(timezone.utc) - updated_at < timedelta(days=14):
+            if datetime.now(timezone.utc) - updated_at < timedelta(days=90):
                 return cached
 
     settings = get_settings()
@@ -273,8 +273,8 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
         if end != -1:
             try:
                 detail = json.loads(html[start:end])
-            except Exception:
-                pass
+            except Exception as e:
+                print("JSON parsing failed:", e)
 
     if detail:
         listing_name = detail.get("room_title") or detail.get("name_slug") or "Extracted Listing"
@@ -315,6 +315,11 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
         result_data = {
             "listing_name": listing_name,
             "price": price,
+            "image_url": (detail.get("photo_url") or {}).get("large") or (detail.get("photo_url") or {}).get("medium") or None,
+            "address": detail.get("address") or detail.get("location_label") or "",
+            "description": detail.get("description") or "",
+            "coordinates": {"lat": detail.get("lat"), "lng": detail.get("lng")} if detail.get("lat") and detail.get("lng") else None,
+            "source": "Mamikos",
             "room_facilities": room_facilities,
             "shared_facilities": shared_facilities,
             "listing_url": url,
@@ -345,9 +350,21 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
     
     if "wifi" in text_content: shared_facilities.append("WiFi")
 
+    # Try to extract image and description
+    img_tag = soup.find("img", {"src": re.compile(r"mamikos")})
+    image_url = img_tag["src"] if img_tag else None
+    
+    desc_tag = soup.find("meta", {"name": "description"})
+    description = desc_tag["content"] if desc_tag else ""
+
     result_data = {
         "listing_name": title,
         "price": price,
+        "image_url": image_url,
+        "address": "",
+        "description": description,
+        "coordinates": None,
+        "source": "Mamikos",
         "room_facilities": room_facilities,
         "shared_facilities": shared_facilities,
         "listing_url": url,
@@ -386,10 +403,27 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
                 "Referer": search_url
             }
             
+            # Dynamic coordinates using Nominatim (OpenStreetMap)
+            # Default to UGM if geocoding fails
+            coords = [[110.36, -7.78], [110.40, -7.74]] 
+            
+            try:
+                nom_url = f"https://nominatim.openstreetmap.org/search?q={quote_plus(area_name)}&format=json&limit=1"
+                nom_headers = {"User-Agent": "gdgoc-hackathon-bot/1.0"}
+                nom_resp = await client.get(nom_url, headers=nom_headers, timeout=5.0)
+                if nom_resp.status_code == 200:
+                    nom_data = nom_resp.json()
+                    if nom_data:
+                        lat = float(nom_data[0]["lat"])
+                        lon = float(nom_data[0]["lon"])
+                        # Create a bounding box (~4km radius) around the location
+                        coords = [[lon - 0.04, lat - 0.04], [lon + 0.04, lat + 0.04]]
+            except Exception as e:
+                print(f"Geocoding failed for {area_name}, using default: {e}")
+
             payload = {
                 "filters": {"price_range": [0, 15000000], "rent_type": 2},
-                # Default UGM coords if location is needed, but we rely on keyword filters
-                "location": [[110.36, -7.78], [110.40, -7.74]],
+                "location": coords,
                 "limit": limit, "offset": 0
             }
             
@@ -412,14 +446,9 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
         except Exception as e:
             print(f"⚠️ Live decryption failed: {e}")
 
-    # Fallback high-quality ALIVE URL for Hackathon Demo if decryption fails
+    # Remove the manual hardcoded fallback. If live search fails, we return whatever we got (even if empty).
     if not room_urls:
-        print("⚠️ Pencarian live kosong. Menggunakan URL manual (ALIVE LINK) sebagai cadangan untuk lanjut testing...")
-        room_urls = [
-            "https://mamikos.com/room/kost-kabupaten-sleman-kost-putri-murah-kost-bimo-hery-prabowo-tipe-a-gamping-sleman?ref=1",
-            "https://mamikos.com/room/kost-kabupaten-sleman-kost-putri-murah-kost-bimo-hery-prabowo-tipe-a-gamping-sleman?ref=2",
-            "https://mamikos.com/room/kost-kabupaten-sleman-kost-putri-murah-kost-bimo-hery-prabowo-tipe-a-gamping-sleman?ref=3"
-        ]
+        print(f"⚠️ Pencarian live kosong untuk area '{area_name}'. Tidak ada URL cadangan yang digunakan.")
 
     results = []
     # Scrape detail for the first N listings to get accurate info
