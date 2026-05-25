@@ -365,24 +365,7 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
     
     room_urls = []
-    # Fallback high-quality URLs for popular areas (Hackathon Demo Support)
-    demo_fallbacks = {
-        "depok": [
-            "https://mamikos.com/room/kost-kabupaten-sleman-kost-campur-eksklusif-kost-singgahsini-pondok-garini-syariah-tipe-d-yogyakarta",
-            "https://mamikos.com/room/kost-sleman-kost-putra-eksklusif-kost-singgahsini-rumah-tentrem-depok-sleman-yogyakarta",
-            "https://mamikos.com/room/kost-sleman-kost-putri-murah-kost-singgahsini-puspita-depok-sleman",
-        ],
-        "ugm": [
-            "https://mamikos.com/room/kost-sleman-kost-campur-murah-kost-mamirooms-cendrawasih-depok-sleman",
-            "https://mamikos.com/room/kost-sleman-kost-putra-murah-kost-singgahsini-p-54-depok-sleman",
-        ]
-    }
     
-    area_key = area_name.lower()
-    for key, urls in demo_fallbacks.items():
-        if key in area_key:
-            room_urls.extend(urls)
-
     async with httpx.AsyncClient(timeout=30.0, headers=headers, follow_redirects=True) as client:
         try:
             resp = await client.get(search_url)
