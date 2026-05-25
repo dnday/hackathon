@@ -391,6 +391,13 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
             except Exception:
                 pass
 
+    # Fallback high-quality ALIVE URL for Hackathon Demo
+    if not room_urls:
+        print("⚠️ Pencarian live gagal. Menggunakan URL manual (ALIVE LINK) sebagai cadangan untuk lanjut testing...")
+        room_urls = [
+            "https://mamikos.com/room/kost-kabupaten-sleman-kost-putri-murah-kost-bimo-hery-prabowo-tipe-a-gamping-sleman"
+        ]
+
     results = []
     # Scrape detail for the first N listings to get accurate info
     for url in room_urls[:limit]:
