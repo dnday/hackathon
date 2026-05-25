@@ -318,7 +318,7 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
             "image_url": (detail.get("photo_url") or {}).get("large") or (detail.get("photo_url") or {}).get("medium") or None,
             "address": detail.get("address") or detail.get("location_label") or "",
             "description": detail.get("description") or "",
-            "coordinates": {"lat": detail.get("lat"), "lng": detail.get("lng")} if detail.get("lat") and detail.get("lng") else None,
+            "coordinates": {"lat": detail.get("latitude"), "lng": detail.get("longitude")} if detail.get("latitude") and detail.get("longitude") else None,
             "source": "Mamikos",
             "room_facilities": room_facilities,
             "shared_facilities": shared_facilities,
