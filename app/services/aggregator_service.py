@@ -395,7 +395,10 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
     if not room_urls:
         print("⚠️ Pencarian live gagal. Menggunakan URL manual (ALIVE LINK) sebagai cadangan untuk lanjut testing...")
         room_urls = [
-            "https://mamikos.com/room/kost-kabupaten-sleman-kost-putri-murah-kost-bimo-hery-prabowo-tipe-a-gamping-sleman"
+            "https://mamikos.com/room/kost-kabupaten-sleman-kost-putri-murah-kost-bimo-hery-prabowo-tipe-a-gamping-sleman?ref=1",
+            "https://mamikos.com/room/kost-kabupaten-sleman-kost-putri-murah-kost-bimo-hery-prabowo-tipe-a-gamping-sleman?ref=2",
+            "https://mamikos.com/room/kost-kabupaten-sleman-kost-putri-murah-kost-bimo-hery-prabowo-tipe-a-gamping-sleman?ref=3",
+            "https://mamikos.com/room/kost-kabupaten-sleman-kost-putri-murah-kost-bimo-hery-prabowo-tipe-a-gamping-sleman?ref=4"
         ]
 
     results = []
