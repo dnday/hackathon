@@ -196,7 +196,6 @@ def _fetch_scraped_listing_sync(url: str) -> Optional[dict[str, Any]]:
         # Force re-scrape if it's old cached data without the new enriched fields (like 'source')
         if "source" not in data:
             return None
-        data["id"] = docs[0].id
         return data
     except google_exceptions.GoogleAPICallError:
         return None
