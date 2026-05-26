@@ -85,7 +85,7 @@ def calculate_trust_score(
     if form_data.photos_match_location == "TIDAK":
         add_anomaly("Fake Photos", "Photos provided do not match the actual location.", 45)
     elif form_data.photos_match_location == "BELUM BISA DIPASTIKAN":
-        add_anomaly("Unverified Photos", "Unable to confirm if photos belong to the property.", 20)
+        add_anomaly("Unverified Photos", "Unable to confirm if photos belong to the property.", 10)
 
     # 3. Information Consistency
     if form_data.info_consistency == "TIDAK":
@@ -93,7 +93,7 @@ def calculate_trust_score(
 
     # 4. Video Call / Survey
     if not form_data.owner_willing_videocall:
-        add_anomaly("Video Call Refused", "Owner is unwilling to verify the listing through a video call.", 40)
+        add_anomaly("Video Call Refused", "Owner is unwilling to verify the listing through a video call.", 30)
 
     # 5. DP Requested
     if form_data.dp_requested:
@@ -111,9 +111,15 @@ def calculate_trust_score(
 
     # 8. Bank Account Match
     if form_data.bank_account_name_match == "TIDAK":
-        add_anomaly("Bank Name Mismatch", "Contact name does not match the bank account name.", 50)
+        add_anomaly("Bank Name Mismatch", "Contact name does not match the bank account name.", 35)
     elif form_data.bank_account_name_match == "TIDAK TAHU":
         add_anomaly("Bank Name Unknown", "Cannot verify if bank account matches the contact identity.", 15)
+
+    # 9. Payment Details Explained
+    if getattr(form_data, "payment_details_explained", "") == "TIDAK DIJELASKAN":
+        add_anomaly("Blind Transfer Request", "Owner asks for transfer without explaining price details/rules.", 30)
+    elif getattr(form_data, "payment_details_explained", "") == "SEBAGIAN DIJELASKAN":
+        add_anomaly("Vague Payment Terms", "Payment details are partially explained but missing key info.", 10)
 
     # Fraud History Check
     if getattr(form_data, "fraud_history_found", False) is True:

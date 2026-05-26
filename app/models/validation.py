@@ -27,6 +27,7 @@ class ListingValidationInput(BaseModel):
     pressure_to_transfer: bool
     recent_video_provided: str = Field(..., description="YA, HANYA VIDEO LAMA, TIDAK")
     bank_account_name_match: str = Field(..., description="YA, TIDAK, TIDAK TAHU")
+    payment_details_explained: str = Field(..., description="YA JELAS, SEBAGIAN, TIDAK DIJELASKAN, BELUM SAMPAI")
     fraud_history_found: bool = Field(default=False)
 
     @model_validator(mode="before")
