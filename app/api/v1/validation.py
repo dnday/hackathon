@@ -204,6 +204,12 @@ async def get_validation_record(record_id: str) -> dict:
 
 @router.get("/reviews/{kos_id}", response_model=KosReviewResponse)
 async def get_kos_reviews(kos_id: str, limit: int = 10) -> KosReviewResponse:
+    if not kos_id.isdigit():
+        raise AppError(
+            "INVALID_KOS_ID", 
+            "kos_id harus berupa angka ID asli dari Mamikos (misal: 93056069), BUKAN berupa URL slug atau teks.", 
+            400
+        )
     try:
         data = await fetch_mamikos_reviews(kos_id, limit)
         return KosReviewResponse(**data)
