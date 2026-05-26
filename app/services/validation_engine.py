@@ -161,9 +161,21 @@ def calculate_trust_score(
     else:
         actions.insert(0, "Aman, tetapi tetap lakukan pengecekan akhir.")
 
-    # Rule-based checks are deterministic facts (100% confidence).
-    # AI checks provide their own confidence level based on evidence.
-    final_confidence = min(100, round((100 * 0.6) + (chat.ai_confidence_score * 0.4)))
+    # Pure Statistical Confidence Score
+    # 1. Statistical Power from Sample Size (Weight: 60%)
+    sample_size = db_benchmark.sample_size if db_benchmark else 0
+    sample_score = min(100.0, (sample_size / 30.0) * 100.0)
+
+    # 2. Data Completeness Score (Weight: 40%)
+    completeness_score = 0
+    if form_data.photos_provided != "Tidak":
+        completeness_score += 40
+    if form_data.specific_address_provided is not False:
+        completeness_score += 30
+    if form_data.contact_name or form_data.bank_account_name:
+        completeness_score += 30
+
+    final_confidence = int(round((sample_score * 0.6) + (completeness_score * 0.4)))
 
     return ValidationResult(
         anomaly_score=final_score,
