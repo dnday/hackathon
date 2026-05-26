@@ -163,6 +163,7 @@ def calculate_trust_score(
 
     return ValidationResult(
         anomaly_score=final_score,
+        confidence_score=100 - final_score,
         status=_status(final_score),
         detected_anomalies=anomalies,
         recommended_actions=actions,

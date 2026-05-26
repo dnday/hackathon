@@ -101,6 +101,7 @@ class PriceComparison(BaseModel):
 class ValidationResult(BaseModel):
     record_id: Optional[str] = None
     anomaly_score: int = Field(..., ge=0, le=100)
+    confidence_score: int = Field(..., ge=0, le=100)
     status: str
     detected_anomalies: list[DetectedAnomaly]
     recommended_actions: list[str]
@@ -136,6 +137,7 @@ class HistoryListItem(BaseModel):
     area_name: str
     price: float
     anomaly_score: int
+    confidence_score: int
     status: str
     conclusion_summary: str
     image_url: Optional[str] = None

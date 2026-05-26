@@ -187,6 +187,7 @@ async def get_validation_history(device_id: str, limit: int = 20) -> list[Histor
             area_name=form.get("area_name", ""),
             price=form.get("price", 0),
             anomaly_score=res.get("anomaly_score", 0),
+            confidence_score=res.get("confidence_score", 100 - res.get("anomaly_score", 0)),
             status=res.get("status", ""),
             conclusion_summary=res.get("conclusion_summary", ""),
             image_url=form.get("image_url"),
