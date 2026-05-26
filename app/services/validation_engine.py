@@ -161,21 +161,18 @@ def calculate_trust_score(
     else:
         actions.insert(0, "Aman, tetapi tetap lakukan pengecekan akhir.")
 
-    # Pure Statistical Confidence Score
-    # 1. Statistical Power from Sample Size (Weight: 60%)
-    sample_size = db_benchmark.sample_size if db_benchmark else 0
-    sample_score = min(100.0, (sample_size / 30.0) * 100.0)
+    # Extremity & Consistency Confidence Score
+    # 1. Base Confidence (Distance from 50)
+    base_confidence = abs(final_score - 50) * 2
 
-    # 2. Data Completeness Score (Weight: 40%)
-    completeness_score = 0
+    # 2. Evidence Bonuses
+    bonus_confidence = 0
+    if db_benchmark and db_benchmark.sample_size > 10:
+        bonus_confidence += 10
     if form_data.photos_provided != "Tidak":
-        completeness_score += 40
-    if form_data.specific_address_provided is not False:
-        completeness_score += 30
-    if form_data.contact_name or form_data.bank_account_name:
-        completeness_score += 30
+        bonus_confidence += 10
 
-    final_confidence = int(round((sample_score * 0.6) + (completeness_score * 0.4)))
+    final_confidence = min(100, base_confidence + bonus_confidence)
 
     return ValidationResult(
         anomaly_score=final_score,
