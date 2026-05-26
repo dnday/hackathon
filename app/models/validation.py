@@ -65,6 +65,7 @@ class BenchmarkData(BaseModel):
 
 class CommunicationAnalysis(BaseModel):
     ai_risk_score: int = Field(..., ge=0, le=100)
+    ai_confidence_score: int = Field(default=0, ge=0, le=100)
     pressure_level: int = Field(..., ge=0, le=100)
     inconsistencies_found: bool
     payment_anomaly_detected: bool

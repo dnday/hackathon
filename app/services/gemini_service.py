@@ -30,6 +30,7 @@ Return raw JSON only with this exact schema:
 {
   "chat_analysis": {
     "ai_risk_score": integer (0-100),
+    "ai_confidence_score": integer (0-100, how certain you are of this risk assessment),
     "pressure_level": integer (0-100),
     "inconsistencies_found": boolean,
     "payment_anomaly_detected": boolean,
@@ -116,6 +117,7 @@ async def analyze_multimodal(
 def _fallback_chat(summary: str) -> dict[str, Any]:
     return CommunicationAnalysis(
         ai_risk_score=0,
+        ai_confidence_score=0,
         pressure_level=0,
         inconsistencies_found=False,
         payment_anomaly_detected=False,

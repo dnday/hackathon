@@ -161,9 +161,13 @@ def calculate_trust_score(
     else:
         actions.insert(0, "Aman, tetapi tetap lakukan pengecekan akhir.")
 
+    # Rule-based checks are deterministic facts (100% confidence).
+    # AI checks provide their own confidence level based on evidence.
+    final_confidence = min(100, round((100 * 0.6) + (chat.ai_confidence_score * 0.4)))
+
     return ValidationResult(
         anomaly_score=final_score,
-        confidence_score=100 - final_score,
+        confidence_score=final_confidence,
         status=_status(final_score),
         detected_anomalies=anomalies,
         recommended_actions=actions,
