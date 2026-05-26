@@ -150,16 +150,16 @@ def calculate_trust_score(
     final_score = min(100, round((rule_score * 0.6) + (ai_risk_score * 0.4)))
 
     actions = [
-        "Verify the address and owner identity through an independent channel.",
-        "Compare the listing price with nearby market benchmarks before payment.",
-        "Keep screenshots, chat logs, and payment details for auditability.",
+        "Verifikasi alamat dan identitas pemilik melalui jalur independen.",
+        "Bandingkan harga dengan standar pasar di sekitar sebelum membayar.",
+        "Simpan bukti percakapan, tangkapan layar, dan detail pembayaran.",
     ]
     if final_score >= 61:
-        actions.insert(0, "Do not transfer before a direct on-site survey.")
+        actions.insert(0, "Berisiko tinggi, jangan bayar sebelum benar-benar terverifikasi")
     elif final_score >= 31:
-        actions.insert(0, "Proceed only after successful video and payment-name validation.")
+        actions.insert(0, "Perlu waspada dan verifikasi tambahan sebelum membayar.")
     else:
-        actions.insert(0, "Listing data appears consistent, but complete normal verification.")
+        actions.insert(0, "Aman, tetapi tetap lakukan pengecekan akhir.")
 
     return ValidationResult(
         anomaly_score=final_score,
