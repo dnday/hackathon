@@ -75,35 +75,49 @@ def calculate_trust_score(
             DetectedAnomaly(title=title, description=description, points=points)
         )
 
-    # Photos
-    if form_data.photos_provided == "Tidak":
-        add_anomaly("No Photos Provided", "The listing does not provide photos.", 25)
+    # 1. Address Specificity
+    if form_data.address_specificity == "HANYA AREA":
+        add_anomaly("Vague Address", "No specific address is provided, only general area.", 25)
+    elif form_data.address_specificity == "HANYA ALAMAT":
+        add_anomaly("Address Unverifiable", "Address is provided but cannot be found on maps.", 15)
 
-    # Map/Address
-    if form_data.specific_address_provided is False:
-        add_anomaly("Vague Address", "No specific address is provided.", 30)
+    # 2. Photos Match Location
+    if form_data.photos_match_location == "TIDAK":
+        add_anomaly("Fake Photos", "Photos provided do not match the actual location.", 45)
+    elif form_data.photos_match_location == "BELUM BISA DIPASTIKAN":
+        add_anomaly("Unverified Photos", "Unable to confirm if photos belong to the property.", 20)
 
-    # Bank Account Name Mismatch
-    if getattr(form_data, "bank_account_name_match", True) is False:
-        add_anomaly("Bank Name Mismatch", "Contact name does not match the bank account name.", 20)
+    # 3. Information Consistency
+    if form_data.info_consistency == "TIDAK":
+        add_anomaly("Inconsistent Information", "Information about facilities, rules, or price changed during communication.", 20)
 
-    # Fraud History
-    if getattr(form_data, "fraud_history_found", False) is True:
-        add_anomaly("Fraud History", "The account or contact has a history of fraud.", 50)
-
-    # Video Call/Survey
+    # 4. Video Call / Survey
     if not form_data.owner_willing_videocall:
         add_anomaly("Video Call Refused", "Owner is unwilling to verify the listing through a video call.", 40)
 
-    # Urgency
-    if form_data.urgency_level == "Ya (harus transfer segera)":
-        add_anomaly("High Urgency", "Owner demands immediate transfer.", 30)
-    elif form_data.urgency_level == "Sedikit":
-        add_anomaly("Slight Urgency", "Owner shows some urgency for payment.", 15)
+    # 5. DP Requested
+    if form_data.dp_requested:
+        add_anomaly("DP Requested Early", "Owner asked for a down payment upfront.", 15)
 
-    # Testimonials
-    if form_data.has_testimonials is False:
-        add_anomaly("No Testimonials", "Listing has no previous testimonials.", 10)
+    # 6. Pressure to Transfer (Urgency/FOMO)
+    if form_data.pressure_to_transfer:
+        add_anomaly("High Urgency (FOMO)", "Owner demands immediate transfer by claiming rooms are running out.", 35)
+
+    # 7. Recent Video Provided
+    if form_data.recent_video_provided == "TIDAK":
+        add_anomaly("Refused Recent Video", "Owner refused to send a recent video of the property.", 25)
+    elif form_data.recent_video_provided == "HANYA VIDEO LAMA":
+        add_anomaly("Old Video Only", "Owner only provided old videos.", 15)
+
+    # 8. Bank Account Match
+    if form_data.bank_account_name_match == "TIDAK":
+        add_anomaly("Bank Name Mismatch", "Contact name does not match the bank account name.", 50)
+    elif form_data.bank_account_name_match == "TIDAK TAHU":
+        add_anomaly("Bank Name Unknown", "Cannot verify if bank account matches the contact identity.", 15)
+
+    # Fraud History Check
+    if getattr(form_data, "fraud_history_found", False) is True:
+        add_anomaly("Fraud History", "The account or contact has a history of fraud.", 50)
 
     # Price vs. Benchmark
     if db_benchmark:

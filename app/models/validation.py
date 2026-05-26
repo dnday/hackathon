@@ -12,17 +12,21 @@ class ListingValidationInput(BaseModel):
     area_name: str = Field(..., min_length=2, max_length=140)
     price: float = Field(..., gt=0)
     device_id: Optional[str] = Field(default=None, max_length=100)
-    owner_willing_videocall: bool
     contact_name: Optional[str] = Field(default=None, max_length=120)
     bank_account_name: Optional[str] = Field(default=None, max_length=120)
     listing_url: Optional[str] = Field(default=None, max_length=600)
     room_facilities: list[str] = Field(default_factory=list)
     shared_facilities: list[str] = Field(default_factory=list)
-    urgency_level: Optional[str] = Field(default=None, max_length=50)
-    has_testimonials: Optional[bool] = Field(default=None)
-    photos_provided: Optional[str] = Field(default=None, max_length=50)
-    specific_address_provided: Optional[bool] = Field(default=None)
-    bank_account_name_match: Optional[bool] = Field(default=None)
+    
+    # QUICKCHECK Revised Form Fields
+    address_specificity: str = Field(..., description="YA, HANYA ALAMAT, HANYA AREA")
+    photos_match_location: str = Field(..., description="YA, BELUM BISA DIPASTIKAN, TIDAK")
+    info_consistency: str = Field(..., description="YA, TIDAK, TIDAK TAHU")
+    owner_willing_videocall: bool
+    dp_requested: bool
+    pressure_to_transfer: bool
+    recent_video_provided: str = Field(..., description="YA, HANYA VIDEO LAMA, TIDAK")
+    bank_account_name_match: str = Field(..., description="YA, TIDAK, TIDAK TAHU")
     fraud_history_found: bool = Field(default=False)
 
     @model_validator(mode="before")
