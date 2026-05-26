@@ -240,6 +240,11 @@ async def extract_listing_from_url(url: str, kos_id: Optional[str] = None) -> di
         updated_at = cached["updated_at"]
         if isinstance(updated_at, datetime):
             if datetime.now(timezone.utc) - updated_at < timedelta(days=90):
+                # Update cache if it's missing source_id but we have one now
+                if kos_id and not cached.get("source_id"):
+                    cached["source_id"] = kos_id
+                    # Async save in background or directly
+                    await save_scraped_listings([cached])
                 return cached
 
     settings = get_settings()
@@ -425,7 +430,13 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
             coords = [[110.36, -7.78], [110.40, -7.74]] 
             
             try:
-                nom_url = f"https://nominatim.openstreetmap.org/search?q={quote_plus(area_name)}&format=json&limit=1"
+                search_query = area_name
+                lower_query = search_query.lower()
+                # Prioritaskan pencarian di area Yogyakarta untuk kompetisi GDGoC UGM
+                if "yogyakarta" not in lower_query and "jogja" not in lower_query and "sleman" not in lower_query and "bantul" not in lower_query:
+                    search_query += " Yogyakarta"
+                    
+                nom_url = f"https://nominatim.openstreetmap.org/search?q={quote_plus(search_query)}&format=json&limit=1"
                 nom_headers = {"User-Agent": "gdgoc-hackathon-bot/1.0"}
                 nom_resp = await client.get(nom_url, headers=nom_headers, timeout=5.0)
                 if nom_resp.status_code == 200:
