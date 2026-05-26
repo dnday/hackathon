@@ -320,6 +320,7 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
             "description": detail.get("description") or "",
             "coordinates": {"lat": detail.get("latitude"), "lng": detail.get("longitude")} if detail.get("latitude") and detail.get("longitude") else None,
             "source": "Mamikos",
+            "source_id": str(detail.get("id")) if detail.get("id") else None,
             "room_facilities": room_facilities,
             "shared_facilities": shared_facilities,
             "listing_url": url,
@@ -470,3 +471,40 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
             pass
             
     return results
+
+async def fetch_mamikos_reviews(kos_id: str, limit: int = 10) -> dict:
+    url = f"https://mamikos.com/garuda/stories/{kos_id}/reviews?sort=new&limit={limit}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        res = await client.get(url, headers=headers)
+        if res.status_code != 200:
+            return {"overall_rating": "0", "total_reviews": 0, "reviews": []}
+        data = res.json()
+        
+        parsed_reviews = []
+        for review in data.get("data", []):
+            photos = []
+            for photo_item in review.get("photo", []):
+                p_url = photo_item.get("photo_url", {})
+                if p_url:
+                    photos.append({
+                        "small": p_url.get("small", ""),
+                        "medium": p_url.get("medium", ""),
+                        "large": p_url.get("large", "")
+                    })
+            parsed_reviews.append({
+                "name": review.get("name", "Anonim"),
+                "rating": float(review.get("rating", 0)),
+                "content": review.get("content", ""),
+                "date": review.get("tanggal", ""),
+                "photos": photos
+            })
+            
+        return {
+            "overall_rating": str(data.get("rating", "0")),
+            "total_reviews": int(data.get("data_count", 0)),
+            "reviews": parsed_reviews
+        }

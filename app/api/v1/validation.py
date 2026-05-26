@@ -8,14 +8,14 @@ from pydantic import ValidationError, BaseModel
 
 from app.core.config import get_settings
 from app.core.exceptions import AppError
-from app.models.validation import BenchmarkData, ListingValidationInput, ValidationResult, AIReviewSummary, HistoryListItem
+from app.models.validation import BenchmarkData, ListingValidationInput, ValidationResult, AIReviewSummary, HistoryListItem, KosReviewResponse
 from app.services.db_service import fetch_latest_area_benchmark, save_validation_history, fetch_validation_history, fetch_validation_record_by_id
 from app.services.gemini_service import (
     analyze_multimodal,
     generate_review_summary as gemini_generate_review_summary,
     generate_review_conclusion,
 )
-from app.services.aggregator_service import aggregate_area_benchmarks, extract_listing_from_url, discover_listings
+from app.services.aggregator_service import aggregate_area_benchmarks, extract_listing_from_url, discover_listings, fetch_mamikos_reviews
 from app.services.validation_engine import calculate_trust_score
 
 router = APIRouter(tags=["validation"])
@@ -201,3 +201,26 @@ async def get_validation_record(record_id: str) -> dict:
     if not record:
         raise AppError("RECORD_NOT_FOUND", "History record not found", 404)
     return record
+
+@router.get("/reviews/{kos_id}", response_model=KosReviewResponse)
+async def get_kos_reviews(kos_id: str, limit: int = 10) -> KosReviewResponse:
+    try:
+        data = await fetch_mamikos_reviews(kos_id, limit)
+        return KosReviewResponse(**data)
+    except Exception as e:
+        raise AppError("FETCH_REVIEWS_FAILED", f"Failed to fetch reviews: {str(e)}", 500)
+
+@router.get("/reviews-by-url", response_model=KosReviewResponse)
+async def get_kos_reviews_by_url(url: str, limit: int = 10) -> KosReviewResponse:
+    try:
+        extracted = await extract_listing_from_url(url)
+        kos_id = extracted.get("source_id")
+        if not kos_id:
+            raise AppError("NO_KOS_ID_FOUND", "Could not extract Kos ID from the provided URL.", 400)
+            
+        data = await fetch_mamikos_reviews(kos_id, limit)
+        return KosReviewResponse(**data)
+    except AppError:
+        raise
+    except Exception as e:
+        raise AppError("FETCH_REVIEWS_FAILED", f"Failed to fetch reviews: {str(e)}", 500)

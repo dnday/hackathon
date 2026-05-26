@@ -127,6 +127,7 @@ class KosListing(BaseModel):
     source: str = "Mamikos"
     image_url: Optional[str] = None
     description: Optional[str] = None
+    source_id: Optional[str] = None
     photos: list[str] = Field(default_factory=list)
     room_facilities: list[str] = Field(default_factory=list)
     shared_facilities: list[str] = Field(default_factory=list)
@@ -143,3 +144,21 @@ class HistoryListItem(BaseModel):
     conclusion_summary: str
     image_url: Optional[str] = None
     created_at: datetime
+
+
+class ReviewPhoto(BaseModel):
+    small: str
+    medium: str
+    large: str
+
+class KosReview(BaseModel):
+    name: str
+    rating: float
+    content: str
+    date: str
+    photos: list[ReviewPhoto] = Field(default_factory=list)
+
+class KosReviewResponse(BaseModel):
+    overall_rating: str
+    total_reviews: int
+    reviews: list[KosReview] = Field(default_factory=list)
