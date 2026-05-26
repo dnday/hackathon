@@ -229,7 +229,12 @@ async def aggregate_area_benchmarks(area_name: str = DEFAULT_AREA) -> dict[str, 
     await save_market_benchmark(area_name, payload)
     return payload
 
-async def extract_listing_from_url(url: str) -> dict[str, Any]:
+async def extract_listing_from_url(url: str, kos_id: Optional[str] = None) -> dict[str, Any]:
+    """
+    Extract property details from a given URL using either direct API interception
+    or HTML parsing fallback.
+    If kos_id is provided, it will enforce setting the source_id to it.
+    """
     cached = await fetch_scraped_listing(url)
     if cached and "updated_at" in cached:
         updated_at = cached["updated_at"]
@@ -322,11 +327,15 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
             "description": detail.get("description") or "",
             "coordinates": {"lat": detail.get("latitude"), "lng": detail.get("longitude")} if detail.get("latitude") and detail.get("longitude") else None,
             "source": "Mamikos",
-            "source_id": str(detail.get("id")) if detail.get("id") else None,
             "room_facilities": room_facilities,
             "shared_facilities": shared_facilities,
             "listing_url": url,
         }
+        result_data["source_id"] = kos_id or str(detail.get("id")) if detail.get("id") else kos_id
+        
+        # Ensure coordinates exist
+        if "coordinates" not in result_data or not result_data["coordinates"]:
+            result_data["coordinates"] = {"lat": 0.0, "lng": 0.0}
         await save_scraped_listings([result_data])
         return result_data
 
@@ -368,10 +377,15 @@ async def extract_listing_from_url(url: str) -> dict[str, Any]:
         "description": description,
         "coordinates": None,
         "source": "Mamikos",
+        "source_id": kos_id,
         "room_facilities": room_facilities,
         "shared_facilities": shared_facilities,
         "listing_url": url,
     }
+    # Ensure coordinates exist
+    if not result_data.get("coordinates"):
+        result_data["coordinates"] = {"lat": 0.0, "lng": 0.0}
+        
     await save_scraped_listings([result_data])
     return result_data
 
@@ -440,11 +454,12 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
             decrypted_bytes = unpad(cipher.decrypt(base64.b64decode(enc_str)), AES.block_size)
             rooms_json = json.loads(decrypted_bytes.decode("utf-8"))
             
-            # 4. Extract URLs from decrypted data
+            # 4. Extract URLs and IDs from decrypted data
             for room in rooms_json:
                 url = room.get("share_url")
+                r_id = room.get("_id")
                 if url:
-                    room_urls.append(url)
+                    room_urls.append({"url": url, "id": str(r_id) if r_id else None})
                     
         except Exception as e:
             print(f"⚠️ Live decryption failed: {e}")
@@ -455,9 +470,9 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
 
     results = []
     # Scrape detail for the first N listings to get accurate info
-    for url in room_urls[:limit]:
+    for item in room_urls[:limit]:
         try:
-            data = await extract_listing_from_url(url)
+            data = await extract_listing_from_url(item["url"], kos_id=item["id"])
             results.append(data)
         except Exception:
             continue
