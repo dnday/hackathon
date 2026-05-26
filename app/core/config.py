@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     google_api_key: Optional[str] = Field(default=None, alias="GOOGLE_API_KEY")
     gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
-    gemini_model: str = Field(default="gemini-3-flash-preview", alias="GEMINI_MODEL")
+    gemini_model: str = Field(default="gemini-3.1-flash-lite", alias="GEMINI_MODEL")
     cron_api_key: Optional[str] = Field(default=None, alias="CRON_API_KEY")
 
     firebase_credentials_path: Optional[str] = Field(
