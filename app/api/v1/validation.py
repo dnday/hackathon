@@ -210,17 +210,3 @@ async def get_kos_reviews(kos_id: str, limit: int = 10) -> KosReviewResponse:
     except Exception as e:
         raise AppError("FETCH_REVIEWS_FAILED", f"Failed to fetch reviews: {str(e)}", 500)
 
-@router.get("/reviews-by-url", response_model=KosReviewResponse)
-async def get_kos_reviews_by_url(url: str, limit: int = 10) -> KosReviewResponse:
-    try:
-        extracted = await extract_listing_from_url(url)
-        kos_id = extracted.get("source_id")
-        if not kos_id:
-            raise AppError("NO_KOS_ID_FOUND", "Could not extract Kos ID from the provided URL.", 400)
-            
-        data = await fetch_mamikos_reviews(kos_id, limit)
-        return KosReviewResponse(**data)
-    except AppError:
-        raise
-    except Exception as e:
-        raise AppError("FETCH_REVIEWS_FAILED", f"Failed to fetch reviews: {str(e)}", 500)
