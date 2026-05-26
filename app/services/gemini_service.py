@@ -62,8 +62,16 @@ Return raw JSON only with this exact schema:
   "short_summary": string,
   "positive_highlights": array of strings,
   "negative_highlights": array of strings,
-  "topic_tags": array of strings
 }
+"""
+
+BATCH_SUMMARY_PROMPT = """
+You are an AI assistant for a Kos (boarding house) discovery application.
+You will be given a JSON list of Kos listings containing their name, price, address, and facilities.
+For EACH listing, you must generate a short summary in Indonesian, strictly following this exact template structure:
+"Kos [Name] berlokasi di [Short Address], ditawarkan dengan harga Rp[Price]/bulan. Fasilitas unggulannya meliputi [2-3 Top Facilities]. Kos ini sangat cocok untuk [Target User: e.g., mahasiswa, pekerja kantoran, pasutri, etc. based on facilities]."
+
+Return ONLY a raw JSON array of strings. The array must have exactly the same length and order as the input list.
 """
 
 def _safe_json(text: str) -> dict[str, Any]:
@@ -157,3 +165,30 @@ async def generate_review_conclusion(risk_score: int, red_flags: list[str], faci
         return response.text.strip()
     except Exception:
         return "Gagal membuat kesimpulan."
+
+async def generate_batch_kos_summary(listings: list[dict]) -> list[str]:
+    model = _model()
+    default_summaries = ["Ringkasan AI tidak tersedia."] * len(listings)
+    if not model or not listings:
+        return default_summaries
+        
+    # Prepare minimal payload to save tokens
+    payload = []
+    for l in listings:
+        payload.append({
+            "name": l.get("listing_name"),
+            "price": l.get("price"),
+            "address": l.get("address"),
+            "facilities": l.get("room_facilities", []) + l.get("shared_facilities", [])
+        })
+        
+    prompt = f"{BATCH_SUMMARY_PROMPT}\n\nListings:\n{json.dumps(payload, indent=2)}"
+    try:
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        parsed = _safe_json(response.text)
+        if isinstance(parsed, list) and len(parsed) == len(listings):
+            return parsed
+        return default_summaries
+    except Exception as e:
+        print(f"Batch summary failed: {e}")
+        return default_summaries

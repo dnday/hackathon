@@ -7,6 +7,7 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from typing import Any, Optional
 from urllib.parse import quote_plus
+from datetime import datetime, timezone
 
 import httpx
 import json
@@ -15,6 +16,7 @@ from bs4 import BeautifulSoup
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.services.db_service import fetch_scraped_listing, save_market_benchmark, save_scraped_listings
+from app.services.gemini_service import generate_batch_kos_summary
 from datetime import timezone, datetime, timedelta
 
 MAMIKOS_BASE_URL = "https://mamikos.com/"
@@ -462,6 +464,15 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
     
     # If we got results, they are high quality. We can use them to seed the benchmark and save to DB!
     if results:
+        # Generate AI Summary
+        try:
+            summaries = await generate_batch_kos_summary(results)
+            for i, r in enumerate(results):
+                r["ai_summary"] = summaries[i] if i < len(summaries) else "Ringkasan AI tidak tersedia."
+        except Exception:
+            for r in results:
+                r["ai_summary"] = "Ringkasan AI tidak tersedia."
+                
         # Save listings to Firestore for the "Explore" feature
         await save_scraped_listings(results)
         
