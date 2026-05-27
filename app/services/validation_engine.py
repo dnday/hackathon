@@ -189,7 +189,7 @@ def calculate_trust_score(
     bonus_confidence = 0
     if db_benchmark and db_benchmark.sample_size > 10:
         bonus_confidence += 10
-    if form_data.photos_provided != "Tidak":
+    if form_data.photos_match_location != "TIDAK":
         bonus_confidence += 10
 
     final_confidence = min(100, base_confidence + bonus_confidence)
