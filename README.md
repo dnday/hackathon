@@ -1,4 +1,4 @@
-# 🛡️ KosCheck Backend Engine
+# KosCheck Backend Engine
 
 <div align="center">
   <p><strong>Advanced Asynchronous Fraud Detection API for Property Listings</strong></p>
@@ -11,7 +11,7 @@
 
 KosCheck is an enterprise-grade REST API designed to preemptively detect fraudulent rental property listings (boarding houses/apartments). It leverages a hybrid validation engine that combines strict deterministic rules (Pydantic) with advanced Multimodal LLM reasoning (Gemini Flash) to cross-validate visual assets, communication logs, and market pricing in real-time.
 
-## 🚀 Core Architecture & Tech Stack
+## Core Architecture & Tech Stack
 
 KosCheck is built for high concurrency and robust external integrations:
 
@@ -23,21 +23,21 @@ KosCheck is built for high concurrency and robust external integrations:
 - **PyCryptodome (AES-128 CBC)**: In-memory cryptographic engine to decrypt secured third-party payloads in real-time.
 - **BeautifulSoup4 & HTTPX**: Asynchronous web scraping engine.
 
-## ⚡ Performance Benchmarks
+## Performance Benchmarks
 
 The infrastructure has been rigorously stress-tested using **Apache Benchmark (ab)** and **Locust** (simulating asynchronous User Journeys) on live remote servers.
 
 | Metric | Result | Status |
 |---|---|---|
-| **API Latency (End-to-End)** | `13.6 seconds` | 🟢 Excellent |
-| **Throughput Capacity** | `>114 req/s` | 🟢 Optimal |
-| **Multimodal AI Inference** | `8.5 seconds` | 🟢 Fast |
-| **AES-128 Decryption** | `<10 ms` | 🟢 Instant |
-| **Scam Detection (Recall)** | `100%` | 🟢 Highly Reliable |
+| **API Latency (End-to-End)** | `13.6 seconds` | Excellent |
+| **Throughput Capacity** | `>114 req/s` | Optimal |
+| **Multimodal AI Inference** | `8.5 seconds` | Fast |
+| **AES-128 Decryption** | `<10 ms` | Instant |
+| **Scam Detection (Recall)** | `100%` | Highly Reliable |
 
 *Note: The AI algorithm utilizes a strict safety-bias, meaning it prefers triggering a False Positive (flagging a safe property as Medium Risk if information is lacking) rather than allowing a scam property to pass (False Negative).*
 
-## 🧠 Fraud Validation Flow
+## Fraud Validation Flow
 
 1. **Input Reception**: Receives multipart data (listing JSON, chat logs `.txt`, and property photos).
 2. **Parallel Processing (`asyncio`)**: Simultaneously executes:
@@ -52,7 +52,7 @@ The infrastructure has been rigorously stress-tested using **Apache Benchmark (a
 
 ---
 
-## 💻 Local Setup & Deployment
+## Local Setup & Deployment
 
 1. **Initialize Virtual Environment:**
    ```bash
@@ -79,10 +79,10 @@ The infrastructure has been rigorously stress-tested using **Apache Benchmark (a
 5. **Access Swagger UI:**
    Navigate to [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) to test the API interactively.
 
-## 📖 API Documentation
+## API Documentation
 
 For detailed endpoint schemas, payload examples, and cURL testing guides, please refer to the [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](./LICENSE) - Copyright (c) 2026 GDGoC Hackathon Team.

@@ -1,16 +1,16 @@
-# 🔌 KosCheck API Documentation & Integration Guide
+# KosCheck API Documentation & Integration Guide
 
 Welcome to the KosCheck API Documentation. This document provides detailed technical information regarding the available endpoints, data schemas, risk scoring metrics, and cURL testing guides.
 
 ---
 
-## 🌐 Base URL
+## Base URL
 - **Local Environment**: `http://localhost:8000/api/v1`
 - **Production Environment**: `https://<remote-server-ip>/api/v1`
 
 ---
 
-## 🛡️ Risk Score Categorization
+## Risk Score Categorization
 
 The AI validation engine calculates an `anomaly_score` for each requested listing based on a rigorous 9-point criteria.
 
@@ -20,7 +20,7 @@ The AI validation engine calculates an `anomaly_score` for each requested listin
 
 ---
 
-## 🛠️ Endpoint Overview
+## Endpoint Overview
 
 ### 1. Deep Check (Validation Engine)
 Performs deep hybrid validation combining rule-based heuristics and Gemini Multimodal AI reasoning.
@@ -60,7 +60,7 @@ Aggregates unformatted user reviews into structured, digestible bullet points.
 
 ---
 
-## 💻 cURL Testing Guide
+## cURL Testing Guide
 
 ### 1. Test Deep Check Validation (High Risk Scenario)
 Simulate a validation check against a suspicious property utilizing the updated 9-point QUICKCHECK schema:
@@ -120,7 +120,7 @@ curl -X POST "http://localhost:8000/api/v1/review-summary" \
 
 ---
 
-## 🔧 Interactive Testing via Swagger UI
+## Interactive Testing via Swagger UI
 
 KosCheck provides a built-in OpenAPI interactive interface.
 1. Run the local server.
