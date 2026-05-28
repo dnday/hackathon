@@ -5,3 +5,4 @@ __pycache__/
 *.log
 secrets/
 .venv*/.antigravitycli/
+DEPLOYMENT.md
