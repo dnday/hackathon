@@ -4,4 +4,4 @@ __pycache__/
 *.py[cod]
 *.log
 secrets/
-.venv*/
+.venv*/.antigravitycli/
