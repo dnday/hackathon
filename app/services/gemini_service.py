@@ -57,11 +57,27 @@ You are a property review analyst. Summarize the following reviews into a struct
 Extract the main positive highlights, negative highlights, and frequently mentioned topic tags (e.g., WiFi, Keamanan, Lokasi).
 Also provide a short 1-2 sentence summary for a quick preview.
 
-Return raw JSON only with this exact schema:
+Finally, analyze the sentiment of the reviews and give a numerical rating from 1 to 5 for the following categories: kebersihan, keamanan, fasilitas, lokasi, harga. 
+MUST FOLLOW THIS STRICT GRADING RUBRIC FOR CONSISTENCY:
+- 1: Highly negative, multiple complaints, terrible.
+- 2: Mostly negative, some issues mentioned.
+- 3: Neutral, average, OR the category is NOT mentioned at all.
+- 4: Mostly positive, good experience.
+- 5: Highly positive, excellent, highly praised.
+
+Return raw JSON ONLY with this exact schema:
 {
-  "short_summary": string,
-  "positive_highlights": array of strings,
-  "negative_highlights": array of strings,
+  "short_summary": "string",
+  "positive_highlights": ["string", "string"],
+  "negative_highlights": ["string", "string"],
+  "topic_tags": ["string", "string"],
+  "sentiment_scores": {
+    "kebersihan": int (1-5),
+    "keamanan": int (1-5),
+    "fasilitas": int (1-5),
+    "lokasi": int (1-5),
+    "harga": int (1-5)
+  }
 }
 """
 
@@ -73,6 +89,47 @@ For EACH listing, you must generate a short summary in Indonesian, strictly foll
 
 Return ONLY a raw JSON array of strings. The array must have exactly the same length and order as the input list.
 """
+
+REVIEW_COMPARE_PROMPT = """
+You are a fraud investigator. Compare the user reviews against the claimed property facilities and price.
+If the reviews strongly indicate the property doesn't match the claims (e.g. claims AC but reviews say no AC, or claims safe but reviews say it's a scam/fake), flag it.
+Return raw JSON ONLY:
+{
+  "is_scam_suspected": boolean,
+  "reason": "string explaining why or why not based on reviews vs claims"
+}
+"""
+
+REVIEW_MODERATION_PROMPT = """
+Kamu adalah sistem AI Content Moderator tingkat lanjut untuk "KosCheck", sebuah platform deteksi penipuan kos-kosan.
+Tugas utama-mu adalah melindungi komunitas dari spam dan ujaran kebencian, SAMBIL TETAP MEMPERTAHANKAN informasi krusial terkait laporan penipuan.
+
+=== ATURAN MODERASI KETAT ===
+
+1. 🚨 PERLINDUNGAN DATA PENIPU (TIDAK DISENSOR):
+   - Jika pengguna membagikan kontak (No HP, WhatsApp) atau rekening bank dalam konteks MEMBONGKAR PENIPUAN (contoh: "Penipu minta DP ke BCA 12345", "Awas nomor 08123 ini scammer").
+   - TINDAKAN: BIARKAN 100%. Informasi ini adalah nyawa dari platform anti-scam.
+
+2. 🛑 SPAM & HIJACKING LAPAK (DISENSOR / DITOLAK):
+   - Jika pengguna membagikan kontak/link untuk tujuan promosi saingan, iklan kos lain, atau mencari penghuni (contoh: "Kos ini penuh, mending ke kos saya di 08...").
+   - TINDAKAN: Sensor nomor/linknya menjadi "[DIHAPUS SISTEM]", atau tolak jika 100% isinya hanya iklan.
+
+3. 🤬 UJARAN KEBENCIAN & KATA KASAR (DISENSOR):
+   - Jika komentar mengandung makian kasar, rasisme, atau pelecehan.
+   - TINDAKAN: Ganti kata kasarnya saja dengan "***". JANGAN menolak seluruh komentar jika inti pesannya (misal: melaporkan penipuan) valid dan berguna.
+
+4. 🗑️ KONTEN BERBAHAYA / JUDI / PINJOL (DITOLAK MUTLAK):
+   - Konten judi online, pinjaman online, pornografi, atau ancaman kekerasan fisik.
+   - TINDAKAN: Tolak mutlak (is_approved: false).
+
+KEMBALIKAN OUTPUT HANYA DALAM FORMAT JSON BERIKUT, TANPA TEKS LAIN (NO MARKDOWN BLOCKS):
+{
+  "is_approved": boolean, // false HANYA JIKA melanggar aturan No 4 atau komentar 100% murni spam iklan tak bermakna.
+  "censored_content": "teks komentar akhir yang siap diposting (setelah sensor diterapkan, atau sama persis jika aman)",
+  "reason": "Penjelasan singkat (1 kalimat) tentang apa yang disensor atau kenapa ditolak."
+}
+"""
+
 
 def _safe_json(text: str) -> dict[str, Any]:
     cleaned = text.strip()
@@ -192,3 +249,29 @@ async def generate_batch_kos_summary(listings: list[dict]) -> list[str]:
     except Exception as e:
         print(f"Batch summary failed: {e}")
         return default_summaries
+
+async def compare_reviews_vs_claims(claims: dict, reviews: list[dict]) -> dict:
+    model = _model()
+    if not model or not reviews:
+        return {"is_scam_suspected": False, "reason": "AI offline atau belum ada review."}
+        
+    prompt = f"{REVIEW_COMPARE_PROMPT}\n\nKlaim:\n{json.dumps(claims, indent=2)}\n\nReviews:\n{json.dumps(reviews, indent=2)}"
+    try:
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        return _safe_json(response.text)
+    except Exception as e:
+        return {"is_scam_suspected": False, "reason": f"Gagal menganalisis: {e}"}
+
+async def moderate_user_comment(comment: str) -> dict:
+    model = _model()
+    if not model:
+        return {"is_approved": True, "censored_content": comment, "reason": "AI offline"}
+        
+    prompt = f"{REVIEW_MODERATION_PROMPT}\n\nKomentar:\n{comment}"
+    try:
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        return _safe_json(response.text)
+    except Exception as e:
+        return {"is_approved": True, "censored_content": comment, "reason": f"Fallback error: {e}"}
+
+

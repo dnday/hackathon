@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Optional
 import asyncio
 import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile, status
 from pydantic import ValidationError, BaseModel
@@ -17,6 +18,10 @@ from app.services.gemini_service import (
 )
 from app.services.aggregator_service import aggregate_area_benchmarks, extract_listing_from_url, discover_listings, fetch_mamikos_reviews
 from app.services.validation_engine import calculate_trust_score
+from app.utils.metadata import get_image_metadata
+from app.utils.geo import extract_lat_lon, haversine_distance
+from app.services.db_service import append_kos_review
+from app.services.gemini_service import compare_reviews_vs_claims, moderate_user_comment
 
 router = APIRouter(tags=["validation"])
 
@@ -215,4 +220,66 @@ async def get_kos_reviews(kos_id: str, limit: int = 10) -> KosReviewResponse:
         return KosReviewResponse(**data)
     except Exception as e:
         raise AppError("FETCH_REVIEWS_FAILED", f"Failed to fetch reviews: {str(e)}", 500)
+
+class AnalyzeReviewsRequest(BaseModel):
+    kos_id: str
+    claims: dict
+
+@router.post("/analyze-reviews")
+async def analyze_kos_reviews(request: AnalyzeReviewsRequest):
+    reviews_data = await fetch_mamikos_reviews(request.kos_id, limit=10)
+    result = await compare_reviews_vs_claims(request.claims, reviews_data["reviews"])
+    return result
+
+@router.post("/add-review")
+async def add_review(
+    kos_id: str = Form(...),
+    comment: str = Form(...),
+    user_lat: float = Form(...),
+    user_lon: float = Form(...),
+    kos_lat: float = Form(...),
+    kos_lon: float = Form(...),
+    photo: UploadFile = File(...)
+):
+    raw = await photo.read()
+    metadata = get_image_metadata(raw)
+    gps_info = metadata.get("gps")
+    
+    if not gps_info:
+        raise AppError("NO_GPS_METADATA", "Foto harus memiliki metadata lokasi (GPS).", 400)
+    
+    coords = extract_lat_lon(gps_info)
+    if not coords:
+        raise AppError("INVALID_GPS_METADATA", "Gagal membaca koordinat dari foto.", 400)
+    
+    photo_lat, photo_lon = coords
+    
+    # Validasi 1: Jarak foto dengan user (max 1km)
+    dist_user = haversine_distance(user_lat, user_lon, photo_lat, photo_lon)
+    if dist_user > 1000:
+        raise AppError("LOCATION_MISMATCH", f"Lokasi anda terlalu jauh dari lokasi foto diambil ({dist_user:.0f}m).", 400)
+        
+    # Validasi 2: Jarak foto dengan kos (max 500m)
+    dist_kos = haversine_distance(kos_lat, kos_lon, photo_lat, photo_lon)
+    if dist_kos > 500:
+        raise AppError("KOS_MISMATCH", f"Foto tidak diambil di area kos tersebut ({dist_kos:.0f}m).", 400)
+        
+    # Validasi konten dengan AI Moderator
+    moderation_result = await moderate_user_comment(comment)
+    if not moderation_result.get("is_approved", True):
+        raise AppError("COMMENT_REJECTED", f"Komentar ditolak: {moderation_result.get('reason', 'Melanggar kebijakan komunitas.')}", 400)
+    
+    final_comment = moderation_result.get("censored_content", comment)
+
+    review_data = {
+        "name": "User Terverifikasi",
+        "rating": 5, 
+        "content": final_comment,
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "is_verified_location": True,
+        "distance_to_kos_meters": dist_kos
+    }
+    
+    await append_kos_review(kos_id, review_data)
+    return {"status": "success", "message": "Komentar berhasil ditambahkan dan diverifikasi."}
 

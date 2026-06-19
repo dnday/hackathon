@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 
 from app.core.config import get_settings
 from app.core.exceptions import AppError
-from app.services.db_service import fetch_scraped_listing, save_market_benchmark, save_scraped_listings
+from app.services.db_service import fetch_scraped_listing, save_market_benchmark, save_scraped_listings, get_firestore_client
 from app.services.gemini_service import generate_batch_kos_summary
 from datetime import timezone, datetime, timedelta
 
@@ -540,8 +540,18 @@ async def fetch_mamikos_reviews(kos_id: str, limit: int = 10) -> dict:
                 "photos": photos
             })
             
+        user_reviews = []
+        try:
+            client = get_firestore_client()
+            if client:
+                doc = client.collection("scraped_listings").document(kos_id).get(retry=None, timeout=3)
+                if doc.exists:
+                    user_reviews = doc.to_dict().get("user_reviews", [])
+        except Exception:
+            pass
+            
         return {
             "overall_rating": str(data.get("rating", "0")),
-            "total_reviews": int(data.get("data_count", 0)),
-            "reviews": parsed_reviews
+            "total_reviews": int(data.get("data_count", 0)) + len(user_reviews),
+            "reviews": parsed_reviews + user_reviews
         }

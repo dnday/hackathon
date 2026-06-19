@@ -205,6 +205,20 @@ async def fetch_scraped_listing(url: str) -> Optional[dict[str, Any]]:
     return await asyncio.to_thread(_fetch_scraped_listing_sync, url)
 
 
+def _append_kos_review_sync(kos_id: str, review_data: dict[str, Any]) -> None:
+    client = get_firestore_client()
+    if not client: return
+    
+    from google.cloud import firestore
+    try:
+        doc_ref = client.collection("scraped_listings").document(kos_id)
+        doc_ref.set({"user_reviews": firestore.ArrayUnion([review_data])}, merge=True)
+    except Exception as e:
+        print(f"Failed to append review: {e}")
+
+async def append_kos_review(kos_id: str, review_data: dict[str, Any]) -> None:
+    await asyncio.to_thread(_append_kos_review_sync, kos_id, review_data)
+
 __all__ = [
     "fetch_latest_area_benchmark",
     "initialize_firebase",
@@ -215,4 +229,5 @@ __all__ = [
     "fetch_validation_record_by_id",
     "save_scraped_listings",
     "fetch_scraped_listing",
+    "append_kos_review",
 ]

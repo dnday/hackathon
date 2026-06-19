@@ -117,11 +117,19 @@ class ValidationResult(BaseModel):
     conclusion_summary: str
 
 
+class SentimentScores(BaseModel):
+    kebersihan: int = Field(default=0, ge=0, le=5)
+    keamanan: int = Field(default=0, ge=0, le=5)
+    fasilitas: int = Field(default=0, ge=0, le=5)
+    lokasi: int = Field(default=0, ge=0, le=5)
+    harga: int = Field(default=0, ge=0, le=5)
+
 class AIReviewSummary(BaseModel):
     short_summary: str = Field(..., max_length=500)
     positive_highlights: list[str]
     negative_highlights: list[str]
     topic_tags: list[str]
+    sentiment_scores: SentimentScores
 
 
 class KosListing(BaseModel):
@@ -162,6 +170,8 @@ class KosReview(BaseModel):
     content: str
     date: str
     photos: list[ReviewPhoto] = Field(default_factory=list)
+    is_verified_location: Optional[bool] = False
+    distance_to_kos_meters: Optional[float] = None
 
 class KosReviewResponse(BaseModel):
     overall_rating: str
