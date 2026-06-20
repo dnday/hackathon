@@ -436,8 +436,8 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
                 search_query = area_name
                 lower_query = search_query.lower()
                 # Prioritaskan pencarian di area Yogyakarta untuk kompetisi GDGoC UGM
-                if "yogyakarta" not in lower_query and "jogja" not in lower_query and "sleman" not in lower_query and "bantul" not in lower_query:
-                    search_query += " Yogyakarta"
+                if "yogyakarta" not in lower_query and "jogja" not in lower_query and "sleman" not in lower_query and "bantul" not in lower_query and "diy" not in lower_query:
+                    search_query += " DIY"
                     
                 nom_url = f"https://nominatim.openstreetmap.org/search?q={quote_plus(search_query)}&format=json&limit=1"
                 nom_headers = {"User-Agent": "gdgoc-hackathon-bot/1.0"}
@@ -447,8 +447,17 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
                     if nom_data:
                         lat = float(nom_data[0]["lat"])
                         lon = float(nom_data[0]["lon"])
-                        # Create a bounding box (~3.3km radius) as requested
-                        coords = [[lon - 0.03, lat - 0.03], [lon + 0.03, lat + 0.03]]
+                        
+                        # Dynamic Bounding Box: Extract the exact shape/size of the area from Nominatim
+                        # This generalizes perfectly whether the user searches for a tiny street or a massive city
+                        bbox = nom_data[0].get("boundingbox")
+                        if bbox and len(bbox) == 4:
+                            min_lat, max_lat, min_lon, max_lon = map(float, bbox)
+                            # Add a very small padding (0.005 ~ 500m) to include kos right on the borders
+                            coords = [[min_lon - 0.005, min_lat - 0.005], [max_lon + 0.005, max_lat + 0.005]]
+                        else:
+                            # Fallback if boundingbox is missing
+                            coords = [[lon - 0.015, lat - 0.015], [lon + 0.015, lat + 0.015]]
             except Exception as e:
                 print(f"Geocoding failed for {area_name}, using default: {e}")
 
