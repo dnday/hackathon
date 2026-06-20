@@ -1,5 +1,6 @@
 from __future__ import annotations
 import re
+import asyncio
 from statistics import mean, median
 import json
 import base64
@@ -577,6 +578,7 @@ async def fetch_mamikos_reviews(kos_id: str, limit: int = 10) -> dict:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         "Accept": "application/json",
     }
+    
     async with httpx.AsyncClient(timeout=10.0) as client:
         res = await client.get(url, headers=headers)
         if res.status_code != 200:
@@ -604,12 +606,13 @@ async def fetch_mamikos_reviews(kos_id: str, limit: int = 10) -> dict:
             
         user_reviews = []
         try:
-            client = get_firestore_client()
-            if client:
-                doc = client.collection("scraped_listings").document(kos_id).get(retry=None, timeout=3)
+            db_client = get_firestore_client()
+            if db_client:
+                doc = await asyncio.to_thread(db_client.collection("scraped_listings").document(kos_id).get, retry=None, timeout=3)
                 if doc.exists:
                     user_reviews = doc.to_dict().get("user_reviews", [])
-        except Exception:
+        except Exception as e:
+            print(f"Firestore user_reviews error: {e}")
             pass
             
         return {
