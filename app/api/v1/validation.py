@@ -239,6 +239,8 @@ async def add_review(
     user_lon: float = Form(...),
     kos_lat: float = Form(...),
     kos_lon: float = Form(...),
+    rating: int = Form(default=5, ge=1, le=5),
+    reviewer_name: str = Form(default="User Terverifikasi"),
     photo: UploadFile = File(...)
 ):
     raw = await photo.read()
@@ -272,8 +274,8 @@ async def add_review(
     final_comment = moderation_result.get("censored_content", comment)
 
     review_data = {
-        "name": "User Terverifikasi",
-        "rating": 5, 
+        "name": reviewer_name,
+        "rating": rating, 
         "content": final_comment,
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "is_verified_location": True,
