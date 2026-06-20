@@ -227,7 +227,10 @@ class AnalyzeReviewsRequest(BaseModel):
 
 @router.post("/analyze-reviews")
 async def analyze_kos_reviews(request: AnalyzeReviewsRequest):
-    reviews_data = await fetch_mamikos_reviews(request.kos_id, limit=10)
+    # Bersihkan ID jika Frontend mengirimkan format "api-12345"
+    clean_kos_id = request.kos_id.replace("api-", "") if request.kos_id.startswith("api-") else request.kos_id
+    
+    reviews_data = await fetch_mamikos_reviews(clean_kos_id, limit=10)
     result = await compare_reviews_vs_claims(request.claims, reviews_data["reviews"])
     return result
 
