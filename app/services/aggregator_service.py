@@ -161,57 +161,88 @@ def _extract_price_samples(html: str) -> list[dict[str, Any]]:
 
 async def aggregate_area_benchmarks(area_name: str = DEFAULT_AREA) -> dict[str, Any]:
     settings = get_settings()
-    headers = {"User-Agent": settings.scraper_user_agent}
-    source_urls = _source_urls(area_name)
+    sample_source = "api_json"
     samples: list[dict[str, Any]] = []
-    last_error: Optional[Exception] = None
-
-    async with httpx.AsyncClient(
-        timeout=httpx.Timeout(settings.scraper_timeout_seconds),
-        headers=headers,
-        follow_redirects=True,
-    ) as client:
-        for source_url in source_urls:
-            try:
-                response = await client.get(source_url)
-                response.raise_for_status()
-            except httpx.HTTPError as exc:
-                last_error = exc
-                continue
-            samples = _extract_price_samples(response.text)
-            if samples:
-                break
-
-    sample_source = "live_html"
     
-    # Graceful Degradation: Jika scraping live gagal (API down atau diblokir target), 
-    # jangan biarkan server Crash. Gunakan data Fallback (Jaring Pengaman Statis).
+    query = quote_plus(area_name)
+    search_url = f"{MAMIKOS_BASE_URL}cari/{query}/all/bulanan/0-15000000"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0, headers=headers, follow_redirects=True) as client:
+            resp = await client.get(search_url)
+            csrf_match = re.search(r'name="csrf-token"\s+content="([^"]+)"', resp.text)
+            csrf = csrf_match.group(1) if csrf_match else ""
+            
+            api_headers = {
+                "User-Agent": headers["User-Agent"],
+                "Content-Type": "application/json",
+                "X-Device-Type": "web",
+                "Authorization": "GIT WEB:WEB",
+                "X-Xsrf-Token": csrf,
+                "Referer": search_url
+            }
+            
+            search_query = area_name
+            lower_query = search_query.lower()
+            if "yogyakarta" not in lower_query and "jogja" not in lower_query and "sleman" not in lower_query and "bantul" not in lower_query and "diy" not in lower_query:
+                search_query += " DIY"
+                
+            nom_url = f"https://nominatim.openstreetmap.org/search?q={quote_plus(search_query)}&format=json&limit=1"
+            nom_resp = await client.get(nom_url, headers={"User-Agent": "gdgoc-hackathon-bot/1.0"}, timeout=5.0)
+            coords = [[110.36, -7.78], [110.40, -7.74]]
+            if nom_resp.status_code == 200:
+                nom_data = nom_resp.json()
+                if nom_data:
+                    bbox = nom_data[0].get("boundingbox")
+                    if bbox and len(bbox) == 4:
+                        min_lat, max_lat, min_lon, max_lon = map(float, bbox)
+                        coords = [[min_lon - 0.005, min_lat - 0.005], [max_lon + 0.005, max_lat + 0.005]]
+
+            payload = {
+                "filters": {"price_range": [0, 15000000], "rent_type": 2},
+                "location": coords,
+                "limit": 50, "offset": 0
+            }
+            
+            r2 = await client.post("https://mamikos.com/garuda/stories/list?v=2", json=payload, headers=api_headers)
+            enc_str = r2.json().get("rooms", "")
+            
+            if enc_str:
+                key = base64.b64decode("MzljODUyZDBkMGJjNDJlZjgzZjdkM2Q3MDhmNDIzNjg=").decode("utf-8").encode("utf-8")
+                iv = base64.b64decode("NWRmNWExMGViYjAzNTA5Nw==").decode("utf-8").encode("utf-8")
+                cipher = AES.new(key, AES.MODE_CBC, iv)
+                decrypted_bytes = unpad(cipher.decrypt(base64.b64decode(enc_str)), AES.block_size)
+                rooms_json = json.loads(decrypted_bytes.decode("utf-8"))
+                
+                for room in rooms_json:
+                    price_str = room.get("price_title_format", {}).get("price", "0").replace(".", "")
+                    try:
+                        price = int(price_str)
+                        if MIN_MONTHLY_PRICE <= price <= MAX_MONTHLY_PRICE:
+                            samples.append({
+                                "name": room.get("room-title", "Kost"),
+                                "price": price
+                            })
+                    except:
+                        pass
+    except Exception as e:
+        print(f"Failed to aggregate benchmarks via API: {e}")
+
     if not samples:
         samples = _fallback_samples_for_area(area_name)
         sample_source = "area_estimate_fallback"
 
-    if not samples and last_error:
-        raise AppError(
-            "AGGREGATOR_UPSTREAM_ERROR",
-            "Unable to fetch public rental benchmark data.",
-            502,
-        ) from last_error
-
     prices = [sample["price"] for sample in samples]
     if not prices:
-        raise AppError(
-            "AGGREGATOR_NO_PRICE_SAMPLES",
-            f"No rental price samples were found for {area_name}.",
-            502,
-        )
+        raise AppError("AGGREGATOR_NO_PRICE_SAMPLES", f"No rental price samples were found for {area_name}.", 502)
 
-    premium_keywords = ["ac", "air panas", "water heater", "eksklusif", "premium", "vip"]
+    premium_keywords = ["ac", "air panas", "water heater", "eksklusif", "premium", "vip", "tipe a"]
     premium_prices = []
     standard_prices = []
     for sample in samples:
         name_lower = sample["name"].lower()
-        is_premium = any(kw in name_lower for kw in premium_keywords)
-        if is_premium:
+        if any(kw in name_lower for kw in premium_keywords):
             premium_prices.append(sample["price"])
         else:
             standard_prices.append(sample["price"])
@@ -224,8 +255,8 @@ async def aggregate_area_benchmarks(area_name: str = DEFAULT_AREA) -> dict[str, 
         "mean_price_premium": round(mean(premium_prices), 2) if premium_prices else None,
         "sample_size": len(prices),
         "source": MAMIKOS_BASE_URL,
-        "source_url": source_urls[0],
-        "source_urls": source_urls,
+        "source_url": search_url,
+        "source_urls": [search_url],
         "sample_source": sample_source,
         "samples": samples[:50],
     }
