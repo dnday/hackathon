@@ -257,9 +257,9 @@ async def generate_batch_kos_summary(listings: list[dict]) -> list[str]:
 async def compare_reviews_vs_claims(claims: dict, reviews: list[dict]) -> dict:
     model = _model()
     if not model:
-        return {"is_scam_suspected": False, "reason": "AI offline (API Key belum dikonfigurasi di Vercel)."}
+        return {"is_scam_suspected": False, "reason": "AI offline (Kunci API belum dikonfigurasi di Server)."}
     if not reviews:
-        return {"is_scam_suspected": False, "reason": "Kos ini belum memiliki ulasan, atau IP Vercel diblokir oleh Mamikos."}
+        return {"is_scam_suspected": False, "reason": "Kos ini belum memiliki ulasan yang cukup untuk dianalisis."}
         
     prompt = f"{REVIEW_COMPARE_PROMPT}\n\nKlaim:\n{json.dumps(claims, indent=2)}\n\nReviews:\n{json.dumps(reviews, indent=2)}"
     try:
