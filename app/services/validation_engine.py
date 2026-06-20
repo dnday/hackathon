@@ -111,7 +111,7 @@ def calculate_trust_score(
 
     # 8. Bank Account Match
     if form_data.bank_account_name_match == "TIDAK":
-        add_anomaly("Bank Name Mismatch", "Contact name does not match the bank account name.", 50)
+        add_anomaly("Bank Name Mismatch", "Contact name does not match the bank account name.", 30)
     elif form_data.bank_account_name_match == "TIDAK TAHU":
         add_anomaly("Bank Name Unknown", "Cannot verify if bank account matches the contact identity.", 15)
 

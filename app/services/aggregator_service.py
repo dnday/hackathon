@@ -183,6 +183,9 @@ async def aggregate_area_benchmarks(area_name: str = DEFAULT_AREA) -> dict[str, 
                 break
 
     sample_source = "live_html"
+    
+    # Graceful Degradation: Jika scraping live gagal (API down atau diblokir target), 
+    # jangan biarkan server Crash. Gunakan data Fallback (Jaring Pengaman Statis).
     if not samples:
         samples = _fallback_samples_for_area(area_name)
         sample_source = "area_estimate_fallback"
@@ -444,8 +447,8 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
                     if nom_data:
                         lat = float(nom_data[0]["lat"])
                         lon = float(nom_data[0]["lon"])
-                        # Create a bounding box (~4km radius) around the location
-                        coords = [[lon - 0.04, lat - 0.04], [lon + 0.04, lat + 0.04]]
+                        # Create a bounding box (~3.3km radius) as requested
+                        coords = [[lon - 0.03, lat - 0.03], [lon + 0.03, lat + 0.03]]
             except Exception as e:
                 print(f"Geocoding failed for {area_name}, using default: {e}")
 
@@ -458,11 +461,18 @@ async def discover_listings(area_name: str, limit: int = 10) -> list[dict[str, A
             r2 = await client.post("https://mamikos.com/garuda/stories/list?v=2", json=payload, headers=api_headers)
             enc_str = r2.json().get("rooms", "")
             
-            # 3. Decrypt AES Enterprise Encryption
+            # 3. Decrypt AES Enterprise Encryption (Rekayasa Balik API Mamikos)
+            # Kunci (Key) dan Vektor Inisialisasi (IV) didapat dari Reverse Engineering file Frontend JS Mamikos
             key = base64.b64decode("MzljODUyZDBkMGJjNDJlZjgzZjdkM2Q3MDhmNDIzNjg=").decode("utf-8").encode("utf-8")
             iv = base64.b64decode("NWRmNWExMGViYjAzNTA5Nw==").decode("utf-8").encode("utf-8")
+            
+            # Membuat mesin dekripsi AES dengan mode CBC (Cipher Block Chaining)
             cipher = AES.new(key, AES.MODE_CBC, iv)
+            
+            # Memecahkan sandi ciphertext (enc_str) dan membuang padding/sampah (unpad)
             decrypted_bytes = unpad(cipher.decrypt(base64.b64decode(enc_str)), AES.block_size)
+            
+            # Mengubah byte bersih kembali menjadi format data JSON yang bisa dibaca sistem
             rooms_json = json.loads(decrypted_bytes.decode("utf-8"))
             
             # 4. Extract URLs and IDs from decrypted data
