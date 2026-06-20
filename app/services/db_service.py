@@ -101,10 +101,14 @@ def _fetch_validation_history_sync(device_id: str, limit: int = 20) -> list[dict
         return []
     settings = get_settings()
     try:
+        # Gunakan Composite Index untuk mencegah Memory Leak
+        from google.cloud import firestore
         docs = (
             client.collection(settings.firestore_history_collection)
             .where("form_data.device_id", "==", device_id)
-            .get(retry=None, timeout=5)
+            .order_by("created_at", direction=firestore.Query.DESCENDING)
+            .limit(limit)
+            .stream(retry=None, timeout=5)
         )
         results = []
         for doc in docs:
@@ -112,9 +116,7 @@ def _fetch_validation_history_sync(device_id: str, limit: int = 20) -> list[dict
             data["id"] = doc.id
             results.append(data)
         
-        # Sort in memory to avoid composite index requirement
-        results.sort(key=lambda x: x.get("created_at") or "", reverse=True)
-        return results[:limit]
+        return results
     except google_exceptions.GoogleAPICallError:
         return []
 

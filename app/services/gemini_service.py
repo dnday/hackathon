@@ -243,8 +243,12 @@ async def generate_batch_kos_summary(listings: list[dict]) -> list[str]:
     try:
         response = await asyncio.to_thread(model.generate_content, prompt)
         parsed = _safe_json(response.text)
-        if isinstance(parsed, list) and len(parsed) == len(listings):
-            return parsed
+        if isinstance(parsed, list):
+            # Isi kekurangan rangkuman dengan default jika AI gagal memproses sebagian
+            result = parsed[:len(listings)]
+            while len(result) < len(listings):
+                result.append("Ringkasan AI tidak tersedia.")
+            return result
         return default_summaries
     except Exception as e:
         print(f"Batch summary failed: {e}")
