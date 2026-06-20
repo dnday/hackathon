@@ -27,9 +27,9 @@ def _price_comparison(
     median_price = benchmark.median_price if benchmark else None
 
     if benchmark:
-        premium_facilities = {"AC", "K. Mandi Dalam", "Air panas", "Eksklusif"}
+        premium_facilities = {"ac", "k. mandi dalam", "air panas", "eksklusif"}
         has_premium = any(
-            f in premium_facilities for f in form_data.room_facilities + form_data.shared_facilities
+            f.lower() in premium_facilities for f in form_data.room_facilities + form_data.shared_facilities
         )
         if has_premium and benchmark.mean_price_premium:
             mean_price = benchmark.mean_price_premium
@@ -93,7 +93,7 @@ def calculate_trust_score(
 
     # 4. Video Call / Survey
     if not form_data.owner_willing_videocall:
-        add_anomaly("Video Call Refused", "Owner is unwilling to verify the listing through a video call.", 40)
+        add_anomaly("Video Call Refused", "Owner is unwilling to verify the listing through a video call.", 25)
 
     # 5. DP Requested
     if form_data.dp_requested:
@@ -123,13 +123,13 @@ def calculate_trust_score(
 
     # Fraud History Check
     if getattr(form_data, "fraud_history_found", False) is True:
-        add_anomaly("Fraud History", "The account or contact has a history of fraud.", 50)
+        add_anomaly("Fraud History", "Riwayat penipuan terdeteksi pada akun atau kontak pemilik kos.", 50)
 
     # Price vs. Benchmark
     if db_benchmark:
-        premium_facilities = {"AC", "Air panas", "Eksklusif", "Premium", "VIP"}
+        premium_facilities = {"ac", "air panas", "eksklusif", "premium", "vip", "tipe a"}
         has_premium = any(
-            f in premium_facilities for f in form_data.room_facilities + form_data.shared_facilities
+            f.lower() in premium_facilities for f in form_data.room_facilities + form_data.shared_facilities
         )
         target_benchmark = db_benchmark.mean_price
         if has_premium and db_benchmark.mean_price_premium:
