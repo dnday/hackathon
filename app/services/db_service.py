@@ -1,6 +1,6 @@
 from __future__ import annotations
 import asyncio
-from datetime import timezone, datetime
+from datetime import timezone, datetime, timedelta
 from typing import Any, Optional
 
 from google.api_core import exceptions as google_exceptions
@@ -38,7 +38,15 @@ def _fetch_latest_area_benchmark_sync(area_name: str) -> Optional[dict[str, Any]
         return None
     if not document.exists:
         return None
+        
     data = document.to_dict() or {}
+    
+    # Cache Expiration Logic (30 Days)
+    updated_at = data.get("updated_at")
+    if updated_at and isinstance(updated_at, datetime):
+        if datetime.now(timezone.utc) - updated_at > timedelta(days=30):
+            return None  # Cache basi, kembalikan None agar sistem menarik API terbaru
+            
     data["id"] = document.id
     return data
 
